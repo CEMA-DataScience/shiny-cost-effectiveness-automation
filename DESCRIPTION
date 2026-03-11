@@ -1,0 +1,26 @@
+Package: cemashinycea
+Title: Interactive Cost-Effectiveness Analysis Tool
+Version: 0.1.0
+Description: Shiny web application for cost-effectiveness analysis of infectious disease interventions.
+Authors@R:
+    person("CEA Team", email = "team@example.com", role = c("aut", "cre"))
+License: Internal Use
+Encoding: UTF-8
+LazyData: true
+Imports:
+    shiny (>= 1.7.0),
+    bslib,
+    DT,
+    plotly,
+    ggplot2,
+    dplyr,
+    readr,
+    readxl,
+    dampack,
+    shinyWidgets,
+    shinycssloaders,
+    shinyjs,
+    jsonlite,
+    markdown
+Suggests:
+    testthat (>= 3.0.0)
