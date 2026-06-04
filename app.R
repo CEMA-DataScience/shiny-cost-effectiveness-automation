@@ -1,167 +1,131 @@
-# Main Shiny App - CEA Tool
-# Entry point for the cost-effectiveness analysis application
+# app.R — Cost-Effectiveness Analysis Tool
 
-# Load required libraries
 library(shiny)
 library(bslib)
 library(DT)
 library(dplyr)
+library(plotly)
 library(dampack)
 library(shinycssloaders)
 library(shinyjs)
 library(markdown)
+library(wbstats)
+library(googlesheets4)
 
-# Source R functions
 source("R/cea_functions.R")
+source("R/fetch_factors.R")
+source("R/synth_functions.R")
+source("R/gs_backend.R")
+source("R/mod_study_entry.R")
+source("R/mod_synthesis.R")
 source("R/mod_input.R")
+source("R/mod_results.R")
 
-# Define UI - Modern single page layout
+# ── Startup: auth + shared data ───────────────────────────────────────────────
+
+GS_WRITE_ENABLED <- gs_init()
+gs_ensure_headers()
+
+# Interventions list: read once, shared across all sessions.
+INTERVENTIONS <- gs_read_interventions()
+message("[app] Loaded ", nrow(INTERVENTIONS), " interventions.")
+
+# Load conversion factors once at startup (cached to data/factors_cache.rds).
+FACTORS <- load_factors()
+
+# ── UI ────────────────────────────────────────────────────────────────────────
+
 ui <- navbarPage(
-  title = "Cost-Effectiveness Analysis Tool",
-  theme = bslib::bs_theme(version = 4, bootswatch = "flatly"),
+  id    = "main_nav",
+  title = "Cost-Effectiveness Analysis",
+  theme = bslib::bs_theme(version = 4, primary = "#27AAE1", bg = "#ffffff", fg = "#0a0a0a") |>
+    bslib::bs_add_rules("
+      .navbar, .navbar.navbar-default, .navbar.navbar-light, .navbar.navbar-dark {
+        background-color: #ffffff !important;
+        background-image: none !important;
+        border-bottom: 2px solid #0a0a0a !important;
+        box-shadow: none !important;
+      }
+      .navbar-brand { color: #0a0a0a !important; font-weight: 700 !important; }
+      .navbar-nav > li > a, .navbar-nav .nav-link {
+        color: #737373 !important;
+      }
+      .navbar-nav > li.active > a,
+      .navbar-nav > li.active > a:hover,
+      .navbar-nav > li.active > a:focus,
+      .navbar-nav .nav-link.active {
+        color: #0a0a0a !important;
+        background: transparent !important;
+        border-bottom: 2px solid #27AAE1 !important;
+        font-weight: 600 !important;
+      }
+      .navbar-nav > li > a:hover, .navbar-nav .nav-link:hover {
+        color: #0a0a0a !important;
+        background: transparent !important;
+      }
+      .navbar-toggle .icon-bar { background-color: #0a0a0a !important; }
+      .navbar-toggle { border-color: #e5e5e5 !important; }
+    "),
+  header = tags$head(
+    tags$link(rel = "stylesheet", href = "styles.css"),
+    useShinyjs()
+  ),
+  footer = mod_results_ui("analysis_results"),
 
-  # Main Analysis Tab
-  tabPanel("Analysis",
-    icon = icon("calculator"),
-
-    # Initialize shinyjs
-    useShinyjs(),
-
-    # Custom CSS
-    tags$head(
-      tags$style(HTML("
-        body { background-color: #f8f9fa; }
-        .navbar-brand { font-weight: bold; }
-        .card {
-          box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-          border: 1px solid rgba(0,0,0,.125);
-        }
-        .alert {
-          margin: 15px 0;
-          padding: 12px;
-          border-radius: 6px;
-          border: 1px solid transparent;
-        }
-        .alert-success {
-          background-color: #d4edda;
-          border-color: #c3e6cb;
-          color: #155724;
-        }
-        .alert-warning {
-          background-color: #fff3cd;
-          border-color: #ffeaa7;
-          color: #856404;
-        }
-        .alert-info {
-          background-color: #d1ecf1;
-          border-color: #bee5eb;
-          color: #0c5460;
-        }
-        .badge-secondary {
-          background-color: #6c757d;
-          color: white;
-          padding: 4px 8px;
-          border-radius: 4px;
-          font-size: 12px;
-        }
-        .btn-success { background-color: #28a745; border-color: #28a745; }
-        .btn-primary { background-color: #007bff; border-color: #007bff; }
-        .section-header {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          padding: 20px;
-          margin-bottom: 30px;
-          border-radius: 8px;
-        }
-      "))
-    ),
-
-    # Header Section
-    div(class = "section-header",
-      h1("💰 Cost-Effectiveness Analysis", style = "margin: 0; font-weight: 300;"),
-      p("Analyze intervention strategies for cost-effectiveness",
-        style = "margin: 10px 0 0 0; opacity: 0.9; font-size: 18px;")
-    ),
-
-    # Main Content
-    mod_input_ui("input_module"),
-
-    # Results Section (initially hidden)
-    div(id = "results_section", style = "display: none;",
-      hr(),
-      h2("📊 Analysis Results"),
-      uiOutput("results_content")
-    )
+  tabPanel("Evidence Synthesis",
+    mod_synthesis_ui("synthesis")
   ),
 
-  # Help Tab
+  tabPanel("Analysis",
+    mod_input_ui("icer_calculation")
+  ),
+
   tabPanel("Help",
-    icon = icon("question-circle"),
-
-    div(class = "container-fluid", style = "margin-top: 20px;",
-
+    div(class = "container-fluid", style = "margin-top:20px;",
       fluidRow(
         column(6,
           div(class = "card",
-            div(class = "card-header bg-primary text-white",
-              h4("🚀 Getting Started", style = "margin: 0;")
-            ),
+            div(class = "card-header", "Getting Started"),
             div(class = "card-body",
-              h5("1. Define Strategies"),
-              p("Enter your intervention strategies with costs and health effects from your disease model."),
-
-              h5("2. Set Parameters"),
-              p("Choose outcome type (QALYs, DALYs, etc.) and cost-effectiveness threshold."),
-
-              h5("3. Run Analysis"),
-              p("Click 'Run Analysis' to generate ICER tables and interpretations."),
-
-              hr(),
-
-              h5("Input Requirements"),
+              tags$h5("1. Evidence Synthesis"),
+              tags$p("Review published study costs standardised to KES 2027, then click
+                      Send to Analysis. The analysis runs automatically and results open
+                      in the side drawer."),
+              tags$h5("2. Analysis"),
+              tags$p("Set the effect measure and threshold. Re-run any time after
+                      editing strategy data."),
+              tags$hr(),
+              tags$h5("Cost-Effectiveness Thresholds (Kenya)"),
               tags$ul(
-                tags$li("Strategy name (e.g., 'Mass Vaccination')"),
-                tags$li("Total cost in USD"),
-                tags$li("Health effect (QALYs, DALYs, lives saved, etc.)")
+                tags$li("0.5× GDP per capita: KES 154,000 per DALY/QALY"),
+                tags$li("SHA Level 3–6: KES 2,240 – 4,480 per day averted")
               )
             )
           )
         ),
-
         column(6,
           div(class = "card",
-            div(class = "card-header bg-info text-white",
-              h4("📈 Understanding Results", style = "margin: 0;")
-            ),
+            div(class = "card-header", "Understanding Results"),
             div(class = "card-body",
-              h5("ICER (Incremental Cost-Effectiveness Ratio)"),
-              p("Cost per additional unit of health outcome compared to the reference strategy."),
-
-              h5("Cost-Effectiveness Thresholds (Kenya)"),
-              tags$ul(
-                tags$li("0.5× GDP per capita: KES 154,000 per QALY/DALY"),
-                tags$li("SHA Hospital Rates per day averted: Level 3 (KES 2,240), Level 4 (KES 3,360), Level 5 (KES 3,920), Level 6 (KES 4,480)")
-              ),
-
-              h5("Interpretation"),
-              p(tags$strong("Cost-effective: "), "ICER below threshold"),
-              p(tags$strong("Not cost-effective: "), "ICER above threshold"),
-              p(tags$strong("Dominated: "), "More expensive, less effective")
+              tags$h5("ICER Table"),
+              tags$p("Incremental cost per additional unit of health outcome versus the reference."),
+              tags$h5("Price Threshold Analysis"),
+              tags$p("Shows the maximum cost at which each strategy would be cost-effective at
+                      the chosen threshold (break-even price), how much headroom exists, and the
+                      ICER curve as a function of price."),
+              tags$h5("PPP vs Exchange Rate"),
+              tags$p("PPP-adjusted costs (from Synthesis) reflect purchasing power;
+                      exchange-rate costs reflect market conversion.")
             )
           )
         )
       ),
-
       br(),
-
       fluidRow(
         column(12,
           div(class = "card",
-            div(class = "card-header bg-success text-white",
-              h4("📋 Sample Data", style = "margin: 0;")
-            ),
+            div(class = "card-header", "Sample Data"),
             div(class = "card-body",
-              h5("Example: Infectious Disease Interventions (Kenya)"),
               DT::dataTableOutput("sample_table")
             )
           )
@@ -171,138 +135,85 @@ ui <- navbarPage(
   )
 )
 
-# Define Server
+# ── Server ────────────────────────────────────────────────────────────────────
+
 server <- function(input, output, session) {
 
-  # Reactive values for storing results
-  values <- reactiveValues(last_results = NULL)
+  app_state <- reactiveValues(
+    last_results = NULL,
+    psa_results  = NULL,
+    sent_prov    = list()
+  )
 
-  # Input module
-  input_data <- mod_input_server("input_module")
+  open_drawer_trigger <- reactiveVal(0L)
 
-  # Sample table for help
-  output$sample_table <- DT::renderDataTable({
-    sample_data <- create_sample_data()
-    sample_data$ICER <- c("Reference", "KES 10,000", "KES 8,293")
+  # Evidence Synthesis module
+  synthesis_out <- mod_synthesis_server("synthesis",
+                                        factors        = FACTORS,
+                                        interventions  = INTERVENTIONS,
+                                        write_enabled  = reactive(GS_WRITE_ENABLED))
 
-    DT::datatable(sample_data,
-      options = list(
-        dom = 't',
-        pageLength = 10,
-        scrollX = TRUE,
-        searching = FALSE,
-        ordering = FALSE
-      ),
-      rownames = FALSE
-    ) %>%
-    DT::formatCurrency(c("cost"), currency = "KES ", digits = 0)
-  }, server = FALSE)
+  # Analysis input module
+  input_data <- mod_input_server(
+    "icer_calculation",
+    inject_strategies = synthesis_out$sent_strategies
+  )
 
-  # Results handling with better error debugging
-  observeEvent(input_data$run_trigger(), {
-    req(input_data$analysis_ready())
-
-    # Get input data
+  # ── Analysis run helper ───────────────────────────────────────────────────
+  .run_analysis <- function() {
     strategies <- input_data$strategies_data()
-    params <- input_data$parameters()
-
-    cat("Running analysis with data:\n")
-    print(strategies)
-    cat("Parameters:\n")
-    print(params)
-
-    # Perform ICER calculation with detailed error handling
     tryCatch({
-
-      # Debug: Check data before passing to dampack
-      if (nrow(strategies) < 2) {
-        stop("Need at least 2 strategies")
-      }
-
-      # Test dampack directly with minimal example
-      cat("Testing dampack calculation...\n")
       icer_result <- dampack::calculate_icers(
-        cost = strategies$cost,
-        effect = strategies$effect,
+        cost       = strategies$cost,
+        effect     = strategies$effect,
         strategies = strategies$strategy
       )
+      app_state$last_results <- icer_result
 
-      cat("dampack result:\n")
-      print(icer_result)
+      prov <- if (length(app_state$sent_prov) > 0) app_state$sent_prov else NULL
+      app_state$psa_results  <- generate_psa_samples(strategies, n_iter = 1000L, prov = prov)
 
-      # Show success message
-      showNotification(
-        "✅ Analysis completed successfully!",
-        duration = 5,
-        type = "message"
-      )
-
-      # Store results and show results section
-      values$last_results <- icer_result
-      show("results_section")
-
+      open_drawer_trigger(open_drawer_trigger() + 1L)
     }, error = function(e) {
-      cat("Error in analysis:", e$message, "\n")
-      print(e)
-
-      showNotification(
-        paste("❌ Analysis failed:", e$message),
-        duration = 8,
-        type = "warning"
-      )
+      showNotification(paste("Analysis failed:", e$message), duration = 8, type = "warning")
     })
+  }
+
+  # Auto-run when Synthesis sends strategies → switch tab + run + open drawer
+  observeEvent(synthesis_out$send_count(), {
+    app_state$sent_prov <- synthesis_out$sent_prov()
+    updateNavbarPage(session, "main_nav", selected = "Analysis")
+  }, ignoreInit = TRUE)
+
+  observeEvent(input_data$injected_count(), {
+    req(input_data$analysis_ready())
+    .run_analysis()
+  }, ignoreInit = TRUE)
+
+  # Manual run
+  observeEvent(input_data$run_trigger(), {
+    req(input_data$analysis_ready())
+    .run_analysis()
   })
 
-  # Render ICER results table
-  output$results_content <- renderUI({
-    req(values$last_results)
-
-    # Create table directly in renderUI (no circular reference)
-    results_table <- DT::datatable(values$last_results,
-      options = list(
-        dom = 't',
-        pageLength = 10,
-        scrollX = FALSE,
-        autoWidth = TRUE
-      ),
+  # Help tab sample table
+  output$sample_table <- DT::renderDataTable({
+    d <- create_sample_data()
+    d$ICER <- c("Reference", "KES 10,000", "KES 8,293")
+    DT::datatable(d,
+      options = list(dom = "t", pageLength = 10, searching = FALSE, ordering = FALSE),
       rownames = FALSE
-    ) %>%
-    DT::formatCurrency(c("Cost", "Inc_Cost"), currency = "KES ", digits = 0) %>%
-    DT::formatRound(c("Effect", "Inc_Effect"), digits = 1) %>%
-    DT::formatCurrency("ICER", currency = "KES ", digits = 0)
+    ) |> DT::formatCurrency("cost", currency = "KES ", digits = 0)
+  }, server = FALSE)
 
-    div(class = "card",
-      div(class = "card-header bg-primary text-white",
-        h4("✅ ICER Results", style = "margin: 0;")
-      ),
-      div(class = "card-body",
-        p("Incremental Cost-Effectiveness Ratios vs. reference strategy:"),
-        results_table,
-        br(),
-
-        # Cost-effectiveness interpretation
-        div(class = "card",
-          div(class = "card-header bg-success text-white",
-            h5("💡 Interpretation & Recommendations", style = "margin: 0;")
-          ),
-          div(class = "card-body",
-            # Get parameters for interpretation
-            tags$div(
-              style = "white-space: pre-wrap;",
-              HTML(markdown::renderMarkdown(
-                text = generate_cea_interpretation(
-                  list(results = values$last_results, success = TRUE),
-                  input_data$parameters()
-                )
-              ))
-            )
-          )
-        )
-      )
-    )
-  })
-
+  # Charts drawer
+  mod_results_server(
+    "analysis_results",
+    results      = reactive(app_state$last_results),
+    parameters   = input_data$parameters,
+    open_trigger = open_drawer_trigger,
+    psa_results  = reactive(app_state$psa_results)
+  )
 }
 
-# Run the app
 shinyApp(ui = ui, server = server)

@@ -1,0 +1,286 @@
+---
+title: "Analytical Methods"
+subtitle: "Kenya CEA Tool — Technical Reference"
+date: last-modified
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    theme: cosmo
+    mainfont: "Inter, sans-serif"
+    embed-resources: true
+bibliography: methods.bib
+---
+
+## Introduction {#sec-intro}
+
+This tool supports cost-effectiveness analysis (CEA) of health interventions by integrating evidence synthesis, currency standardisation, and decision-analytic modelling into a single interactive workflow.
+
+It begins with study database which is populated via manual entry or structured CSV upload. The analyst selects the interventions of interest and reviews the available cost and effectiveness estimates, choosing which studies to include and which pooling method to apply (simple mean, sample-size weighted mean, or
+inverse-variance weighting; @sec-pooling). The tool pools the estimates accordingly and submits the resulting parameters to a CEA engine.
+
+Costs reported in foreign currencies and historical price years are first converted to Kenyan shillings (KES) at a common target year through a three-step purchasing-power-parity
+(PPP) standardisation procedure (@sec-cost-std). 
+
+Pooled estimates are then used to compute incremental cost-effectiveness ratios (ICERs) against the least costly comparator, with dominated and extendedly dominated strategies
+identified and removed (@sec-cea).
+
+Uncertainty is characterised through one-way sensitivity analysis, probabilistic sensitivity analysis (PSA), and cost-effectiveness acceptability curves (CEACs) (@sec-uncertainty).
+
+A supplementary price-threshold analysis expresses the ICER as a continuous function of intervention price, identifying the maximum price at which a strategy remains cost-effective
+(@sec-price).
+
+Outputs include an ICER league table, a cost-effectiveness plane with PSA scatter, a tornado diagram, a CEAC, and a price-threshold curve.
+
+---
+
+## Cost Standardisation {#sec-cost-std}
+
+Studies drawn from the literature report costs in different currencies and price years.
+Before pooling or comparison, every cost must be converted to a common currency and
+price year — here, Kenyan shillings (KES) at a target year of $y^* = 2027$.
+Two parallel paths are implemented: a **purchasing-power-parity (PPP) path**, which is the
+primary analysis, and an **exchange-rate (FX) path**, retained for provenance and as a
+sensitivity check.
+Both paths follow the same three-step structure; they differ only in the conversion
+factor applied in Step 2 and the reference year that anchors that conversion.
+
+The following notation is used throughout this section.
+
+| Symbol | Definition |
+|--------|-----------|
+| $C_0$ | Reported cost in source currency |
+| $y_s$ | Year of the study (price year of reported cost) |
+| $y_p$ | PPP reference year (most recent World Bank ICP round with Kenya data) |
+| $y_{\mathrm{FX}}$ | FX anchor year (derived from the CBK anchor date, 30 April 2026) |
+| $y^*$ | Target year ($= 2027$) |
+| $\pi_t^{(\mathrm{src})}$ | Annual inflation rate for the source country in year $t$ (World Bank GDP deflator) |
+| $\pi_t^{(\mathrm{KES})}$ | Annual inflation rate for Kenya in year $t$ (CBK/KNBS CPI) |
+| $r^{\mathrm{PPP}}$ | PPP conversion factor: KES per one unit of source currency at $y_p$ |
+| $r^{\mathrm{FX}}$ | Spot exchange rate: KES per one unit of source currency at anchor date |
+
+Two inflation series are used.
+For the **source country**, the annual GDP deflator (`NY.GDP.DEFL.KD.ZG`) is retrieved
+from the World Bank API via the `wbstats` R package.
+For **Kenya**, the annual average CPI published by the Kenya National Bureau of Statistics
+(KNBS) and made available through the Central Bank of Kenya (CBK) website is used instead,
+as it is updated more frequently and reflects domestic consumer prices more directly.
+
+For years in which no observation is available in either series — typically the most
+recent calendar year and any future year — the rate is imputed as the mean of all
+observed years for that country.
+Formally, let $\mathcal{T}^{(k)}$ denote the set of years for which a rate is observed
+for country $k$.
+The imputed rate for year $t \notin \mathcal{T}^{(k)}$ is
+
+$$
+\bar{\pi}^{(k)} \;=\; \frac{1}{\lvert\mathcal{T}^{(k)}\rvert} \sum_{t' \in \mathcal{T}^{(k)}} \pi_{t'}^{(k)}.
+$$ {#eq-mean-rate}
+
+The effective rate used in the compound factor (@eq-compound) is therefore
+
+$$
+\hat{\pi}_t^{(k)} \;=\;
+\begin{cases}
+  \pi_t^{(k)} & t \in \mathcal{T}^{(k)}, \\
+  \bar{\pi}^{(k)} & t \notin \mathcal{T}^{(k)}.
+\end{cases}
+$$ {#eq-imputed-rate}
+
+### Step 1 — Inflation Adjustment in Source Currency {#sec-step1}
+
+The reported cost is first adjusted for inflation in the source country, bringing it
+forward to the PPP reference year (or FX anchor year for the FX path).
+Define the compound inflation factor from year $a$ to year $b$ as
+
+$$
+F(a,\, b,\, \hat{\pi}) \;=\; \prod_{t=a}^{b-1} \bigl(1 + \hat{\pi}_t\bigr),
+\qquad F(a,\, b,\, \hat{\pi}) = 1 \text{ when } a \geq b,
+$$ {#eq-compound}
+
+where $\hat{\pi}_t$ is the effective rate defined in @eq-imputed-rate.
+
+The inflation-adjusted cost in source currency at the PPP reference year is
+
+$$
+C_1 \;=\; C_0 \cdot F\!\left(y_s,\; y_p,\; \pi^{(\mathrm{src})}\right). \tag{PPP path}
+$$
+
+For the FX path the same formula is applied with $y_{\mathrm{FX}}$ in place of $y_p$.
+
+### Step 2 — Currency Conversion to KES {#sec-step2}
+
+#### PPP path (primary)
+
+The PPP conversion factor is derived from the World Bank International Comparison
+Programme (ICP) indicator `PA.NUS.PPP`, which reports the local-currency units required
+to purchase one international dollar.
+Denoting the ICP value for country $k$ in year $y_p$ as $q^{(k)}_{y_p}$, the bilateral
+PPP rate from source currency to KES is
+
+$$
+r^{\mathrm{PPP}} \;=\; \frac{q^{(\mathrm{KEN})}_{y_p}}{q^{(\mathrm{src})}_{y_p}}.
+$$ {#eq-ppp-rate}
+
+The cost in KES at the PPP reference year is then
+
+$$
+C_2 \;=\; C_1 \cdot r^{\mathrm{PPP}}.
+$$
+
+Note that both $C_1$ and $C_2$ are intermediate quantities; only the final
+target-year cost $C^{\mathrm{PPP}}$ (see @eq-final-ppp) is used in downstream analysis.
+
+#### FX path (sensitivity)
+
+The FX conversion uses the spot exchange rate $r^{\mathrm{FX}}$ published by the
+Central Bank of Kenya (CBK), anchored to 30 April 2026.
+East African currencies quoted inversely by the CBK (TZS, UGX, RWF, BIF) are
+inverted to obtain KES-per-unit rates.
+
+$$
+C_2^{\mathrm{FX}} \;=\; C_1^{\mathrm{FX}} \cdot r^{\mathrm{FX}}.
+$$
+
+### Step 3 — Inflation Adjustment in KES to Target Year {#sec-step3}
+
+The KES amount at the PPP reference year (or FX anchor year) is brought forward to
+$y^* = 2027$ using Kenya's CBK/KNBS CPI series ($\hat{\pi}^{(\mathrm{KES})}$):
+
+$$
+C^{\mathrm{PPP}} \;=\; C_2 \cdot F\!\left(y_p,\; y^*,\; \pi^{(\mathrm{KES})}\right).
+$$ {#eq-final-ppp}
+
+Combining all three steps, the fully standardised cost under the PPP path is
+
+$$
+\boxed{
+C^{\mathrm{PPP}} \;=\; C_0
+  \;\cdot\; F\!\left(y_s,\; y_p,\; \pi^{(\mathrm{src})}\right)
+  \;\cdot\; r^{\mathrm{PPP}}
+  \;\cdot\; F\!\left(y_p,\; y^*,\; \pi^{(\mathrm{KES})}\right)
+}
+$$ {#eq-standardised}
+
+with the analogous expression for $C^{\mathrm{FX}}$ substituting $y_{\mathrm{FX}}$
+for $y_p$ and $r^{\mathrm{FX}}$ for $r^{\mathrm{PPP}}$.
+
+### PPP vs. Exchange-Rate Path {#sec-ppp-vs-fx}
+
+Market exchange rates reflect international financial flows and are subject to
+short-run volatility; they do not capture the relative cost of non-traded goods and
+services, which make up a large share of health expenditure in low- and
+middle-income settings [@neumann2016].
+PPP-adjusted costs are therefore the primary metric for cross-country comparisons
+in health economic analysis.
+The FX path is nevertheless retained for every study: the tool displays the
+percentage divergence
+
+$$
+\Delta_{\mathrm{PPP/FX}} \;=\; \frac{C^{\mathrm{PPP}} - C^{\mathrm{FX}}}{C^{\mathrm{FX}}} \times 100\%
+$$ {#eq-ppp-fx-diff}
+
+as a provenance check.
+Large divergence may indicate a currency subject to capital controls or a
+structurally misaligned exchange rate, and should prompt review of the source study.
+
+---
+
+## Evidence Synthesis {#sec-synthesis}
+
+### Pooling Methods {#sec-pooling}
+
+<!-- Three methods: simple mean, sample-size weighted mean, IVW. LaTeX formula for each. Note on effect always being sample-size weighted. -->
+
+*[To be written]*
+
+### Study Exclusion {#sec-exclusion}
+
+<!-- How unchecked / excluded studies are handled before pooling. -->
+
+*[To be written]*
+
+---
+
+## Cost-Effectiveness Analysis {#sec-cea}
+
+### Incremental Cost-Effectiveness Ratio {#sec-icer}
+
+<!-- ICER formula. Reference strategy identification (lowest pooled PPP cost). -->
+
+*[To be written]*
+
+### Dominance and Extended Dominance {#sec-dominance}
+
+<!-- Definitions; how dampack identifies and removes dominated strategies. -->
+
+*[To be written]*
+
+### Willingness-to-Pay Threshold {#sec-wtp}
+
+<!-- Two threshold options:
+     (a) 0.5× GDP per capita = KES 154,000 per DALY or QALY averted (default)
+     (b) SHA hospital day rates — Levels 3–6 (KES 2,240 / 3,360 / 3,920 / 4,480 per day) -->
+
+*[To be written]*
+
+---
+
+## Uncertainty Analysis {#sec-uncertainty}
+
+### One-Way Sensitivity Analysis {#sec-owsa}
+
+<!-- ±20% perturbation of each strategy's cost and effect independently. Tornado diagram. -->
+
+*[To be written]*
+
+### Probabilistic Sensitivity Analysis {#sec-psa}
+
+#### Distributional Assumptions {#sec-psa-dists}
+
+<!-- Gamma for costs (always positive, right-skewed). Truncated Normal at 0 for effects. LaTeX for Gamma parameterisation (shape, scale from mean and SD). -->
+
+*[To be written]*
+
+#### Standard Deviation Derivation {#sec-psa-sd}
+
+<!-- Primary: SD = (max - min) / 3.92 when ≥2 studies available. Justification: 95% CI of a Normal spans ≈3.92σ (Turner et al.). Fallback: 20% CV. LaTeX for both. -->
+
+*[To be written]*
+
+#### Monte Carlo Simulation {#sec-psa-mc}
+
+<!-- 1,000 iterations. Construction of cost and effectiveness matrices (n_iter × n_strategies). -->
+
+*[To be written]*
+
+### Cost-Effectiveness Acceptability Curve {#sec-ceac}
+
+<!-- NMB formula. CEAC definition: proportion of iterations where each strategy maximises NMB. WTP range 0–3× threshold. -->
+
+*[To be written]*
+
+---
+
+## Price Threshold Analysis {#sec-price}
+
+<!-- ICER as a function of intervention price. How threshold-crossing price is derived. How to read the curve. -->
+
+*[To be written]*
+
+---
+
+## References {#sec-refs}
+
+<!-- Suggested citations (to populate methods.bib):
+     - Turner et al. (2019) — Cochrane Handbook / range-to-SD method (3.92 justification)
+     - Alarid-Escudero et al. (2022) — dampack R package
+     - Neumann et al. (2016) — Cost-effectiveness in health and medicine (2nd ed.)
+     - Husereau et al. (2022) — CHEERS 2022 reporting guideline
+     - World Bank ICP — PPP conversion factors
+     - Kenya National Bureau of Statistics — GDP per capita reference
+-->
+
+::: {#refs}
+:::

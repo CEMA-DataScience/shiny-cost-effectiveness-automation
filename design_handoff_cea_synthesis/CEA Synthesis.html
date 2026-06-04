@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cost-Effectiveness Analysis · Evidence Synthesis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ink:#0a0a0a; --ink-soft:#404040; --muted:#737373; --faint:#a3a3a3;
+    --bg:#fff; --surface:#fff; --panel:#fafafa;
+    --border:#e5e5e5; --teal:#0f766e; --teal-soft:#ecfdf5; --clay:#9a6a3a; --clay-soft:#fbf6f0;
+    --red:#b91c1c; --red-soft:#fef2f2; --amber:#b45309; --amber-soft:#fffbeb;
+    --green:#047857; --green-soft:#ecfdf5; --radius:4px;
+  }
+  body { font-family:'Archivo',sans-serif; background:var(--bg); color:var(--ink); font-size:14px; line-height:1.5; }
+  ::-webkit-scrollbar { width:8px; height:8px; }
+  ::-webkit-scrollbar-thumb { background:#d4d4d4; border-radius:4px; }
+  .mono { font-family:'IBM Plex Mono',monospace; }
+
+  .nav { height:52px; display:flex; align-items:center; gap:22px; padding:0 24px; background:#fff; border-bottom:2px solid var(--ink); position:sticky; top:0; z-index:50; }
+  .nav-brand { font-weight:700; font-size:15px; letter-spacing:-0.01em; }
+  .nav-links { display:flex; gap:2px; }
+  .nav-link { font-size:13px; padding:6px 12px; color:var(--muted); cursor:pointer; border:none; background:none; font-family:inherit; border-bottom:2px solid transparent; margin-bottom:-2px; display:flex; align-items:center; gap:6px; }
+  .nav-link.on { color:var(--ink); font-weight:600; border-bottom-color:var(--teal); }
+  .nav-link .pip { font-size:10px; background:var(--teal); color:#fff; border-radius:10px; padding:1px 6px; font-weight:600; }
+  .nav-spacer { flex:1; }
+
+  .shell { max-width:1480px; margin:0 auto; }
+  .hero { padding:22px 24px 18px; border-left:3px solid var(--teal); margin:22px 24px 0; }
+  .hero h1 { font-size:24px; font-weight:700; letter-spacing:-0.02em; }
+  .hero p { color:var(--muted); font-size:13px; margin-top:3px; }
+
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+  .card-h { padding:11px 15px; font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.05em; background:var(--panel); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+  .card-b { padding:16px; }
+
+  .btn { font-family:inherit; font-size:12px; padding:6px 12px; border-radius:var(--radius); border:1px solid var(--border); background:#fff; color:var(--ink); cursor:pointer; display:inline-flex; align-items:center; gap:6px; font-weight:500; }
+  .btn:hover { background:var(--panel); }
+  .btn-ink { background:var(--ink); color:#fff; border-color:var(--ink); }
+  .btn-ink:hover { background:#262626; }
+  .btn-teal { background:var(--teal); color:#fff; border-color:var(--teal); }
+  .btn-teal:hover { background:#0b5d56; }
+  .btn-lg { padding:10px 18px; font-size:13px; }
+  .btn-run { width:100%; padding:13px; background:var(--ink); color:#fff; border:none; border-radius:var(--radius); font-family:inherit; font-weight:600; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; }
+  .btn-run:hover { background:#262626; }
+  .btn-run:disabled { background:#d4d4d4; cursor:not-allowed; }
+
+  table.tbl { width:100%; border-collapse:collapse; }
+  .tbl th { text-align:left; padding:8px 11px; font-size:10px; text-transform:uppercase; letter-spacing:0.07em; color:var(--muted); border-bottom:1.5px solid var(--ink); font-weight:600; white-space:nowrap; }
+  .tbl td { padding:9px 11px; border-bottom:1px solid var(--border); font-size:13px; }
+  .tbl tr:last-child td { border-bottom:none; }
+  .tbl td.mono, .tbl th.mono { font-family:'IBM Plex Mono',monospace; font-size:12px; }
+  .tbl .num { text-align:right; }
+  .tbl .editable:hover { background:var(--teal-soft); cursor:text; outline:1px solid var(--teal); }
+  .cell-input { width:100%; border:1px solid var(--teal); border-radius:2px; padding:3px 5px; font-family:'IBM Plex Mono',monospace; font-size:12px; outline:none; }
+
+  .tag { display:inline-block; font-size:10px; font-weight:600; padding:2px 7px; border-radius:2px; text-transform:uppercase; letter-spacing:0.04em; }
+  .tag-ref { background:#f5f5f5; color:var(--muted); }
+  .tag-ce { background:var(--green-soft); color:var(--green); }
+  .tag-nce { background:var(--red-soft); color:var(--red); }
+  .tag-dom { background:var(--amber-soft); color:var(--amber); }
+  .tag-lit { background:var(--clay-soft); color:var(--clay); }
+  .tag-man { background:#f5f5f5; color:var(--muted); }
+
+  .src-btn { font-family:inherit; font-size:11px; padding:3px 8px; border-radius:2px; border:1px solid var(--clay); background:var(--clay-soft); color:var(--clay); cursor:pointer; display:inline-flex; align-items:center; gap:5px; font-weight:600; }
+  .src-btn:hover { background:#f4ebe0; }
+
+  /* synthesis */
+  .target-bar { display:flex; align-items:center; gap:14px; flex-wrap:wrap; background:var(--ink); color:#fff; border-radius:var(--radius); padding:11px 16px; margin-bottom:18px; }
+  .target-bar .tb-k { font-size:10px; color:#a3a3a3; text-transform:uppercase; letter-spacing:0.06em; }
+  .target-bar .tb-v { font-size:13px; font-weight:600; }
+  .target-bar .tb-v.mono { font-family:'IBM Plex Mono',monospace; }
+  .target-sep { width:1px; align-self:stretch; background:#333; }
+
+  .grp-head td { background:var(--panel); font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft); padding:7px 11px; border-bottom:1px solid var(--border); }
+  .pool-row td { background:#f7faf9; border-top:1.5px solid var(--teal); border-bottom:1px solid var(--border); font-weight:600; }
+  .pool-row .pool-lbl { color:var(--teal); font-size:11px; text-transform:uppercase; letter-spacing:0.05em; }
+  .arrow { color:var(--faint); padding:0 2px; }
+  .step-col { background:#fcfcfc; }
+
+  .seg { display:inline-flex; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+  .seg button { font-size:11px; padding:5px 11px; border:none; background:#fff; color:var(--muted); cursor:pointer; font-family:inherit; border-right:1px solid var(--border); }
+  .seg button:last-child { border-right:none; }
+  .seg button.on { background:var(--ink); color:#fff; font-weight:600; }
+
+  .note { font-size:11px; color:var(--faint); line-height:1.6; }
+  .rule { border:none; border-top:1px solid var(--border); margin:13px 0; }
+  .prm { display:flex; flex-direction:column; gap:7px; }
+  .prm-lbl { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft); margin-bottom:2px; }
+  .radio { display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer; color:var(--ink-soft); }
+  .radio input, .check input { accent-color:var(--teal); }
+  .check { display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer; }
+  .field { width:100%; padding:7px 9px; border:1px solid var(--border); border-radius:var(--radius); font-family:inherit; font-size:13px; background:#fff; outline:none; }
+  .field.mono { font-family:'IBM Plex Mono',monospace; }
+  .field:focus { border-color:var(--teal); }
+
+  /* result tabs / charts */
+  .rtabs { display:flex; border-bottom:1.5px solid var(--ink); flex-wrap:wrap; }
+  .rtab { font-family:inherit; font-size:13px; padding:9px 14px; border:none; background:none; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1.5px; display:flex; align-items:center; gap:6px; }
+  .rtab.on { color:var(--ink); font-weight:600; border-bottom-color:var(--teal); }
+  .rtab svg { width:14px; height:14px; }
+  .chart-block { padding:18px 2px 4px; }
+  .chart-title { font-size:14px; font-weight:700; }
+  .chart-sub { font-size:12px; color:var(--muted); margin:2px 0 14px; }
+  .chart-canvas-wrap { position:relative; height:330px; }
+  .interp { border:1px solid var(--border); border-radius:var(--radius); padding:15px; font-size:13px; line-height:1.75; }
+  .interp.ok { border-left:3px solid var(--green); }
+  .interp.warn { border-left:3px solid var(--amber); }
+  .pt-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:16px; }
+  .pt-stat { border:1px solid var(--border); border-radius:var(--radius); padding:13px; text-align:center; }
+  .pt-val { font-family:'IBM Plex Mono',monospace; font-size:18px; font-weight:600; }
+  .pt-lbl { font-size:10px; color:var(--muted); margin-top:4px; text-transform:uppercase; letter-spacing:0.05em; }
+  .psa-chips { display:flex; gap:10px; margin-bottom:14px; }
+  .chip { font-size:12px; font-weight:600; padding:4px 10px; border-radius:2px; }
+  .chip-ce { background:var(--green-soft); color:var(--green); }
+  .chip-nce { background:var(--red-soft); color:var(--red); }
+
+  /* drawer */
+  .drawer-backdrop { position:fixed; inset:0; background:rgba(10,10,10,0.4); z-index:200; animation:fade 0.2s; }
+  @keyframes fade { from{opacity:0;} to{opacity:1;} }
+  .drawer { position:fixed; top:0; right:0; bottom:0; width:min(960px,80vw); background:#fff; z-index:201; box-shadow:-8px 0 30px rgba(0,0,0,0.15); display:flex; flex-direction:column; animation:slidein 0.25s ease; }
+  .drawer.narrow { width:min(720px,72vw); }
+  @keyframes slidein { from{transform:translateX(40px);opacity:0.4;} to{transform:translateX(0);opacity:1;} }
+  .drawer-h { display:flex; align-items:center; justify-content:space-between; padding:16px 22px; border-bottom:2px solid var(--ink); }
+  .drawer-h h2 { font-size:17px; font-weight:700; }
+  .drawer-h .sub { font-size:12px; color:var(--muted); font-weight:400; margin-top:2px; }
+  .drawer-body { flex:1; overflow-y:auto; padding:20px 22px; }
+  .icon-btn { background:none; border:none; cursor:pointer; padding:5px; color:var(--muted); border-radius:var(--radius); display:flex; }
+  .icon-btn:hover { background:var(--panel); color:var(--ink); }
+
+  .prov-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:18px; }
+  .prov-stat { border:1px solid var(--border); border-radius:var(--radius); padding:13px; }
+  .prov-stat .v { font-family:'IBM Plex Mono',monospace; font-size:17px; font-weight:600; }
+  .prov-stat .k { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-top:3px; }
+
+  .spinner { display:inline-block; width:15px; height:15px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .notif { position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:10px 18px; border-radius:var(--radius); font-size:13px; z-index:300; box-shadow:0 6px 20px rgba(0,0,0,0.2); }
+  .empty { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:280px; color:var(--faint); text-align:center; gap:10px; padding:40px; }
+  .empty .et { font-size:14px; font-weight:600; color:var(--muted); }
+  .empty .es { font-size:12px; max-width:300px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" src="cea-charts.jsx"></script>
+<script type="text/babel" src="synthesis-data.jsx"></script>
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+const SZ={width:14,height:14,flexShrink:0};
+const ITable=()=><svg style={SZ} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="2" width="12" height="12" rx="1"/><path d="M2 6h12M2 10h12M6 2v12"/></svg>;
+const IScatter=()=><svg style={SZ} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="4" cy="12" r="1.4" fill="currentColor"/><circle cx="8" cy="6" r="1.4" fill="currentColor"/><circle cx="12" cy="9" r="1.4" fill="currentColor"/><path d="M1 15h14M1 1v14"/></svg>;
+const ITornado=()=><svg style={SZ} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 4h12M3 7h10M4 10h8M6 13h4"/></svg>;
+const ICeac=()=><svg style={SZ} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M1 14 Q5 14 7 9 Q10 3 15 2"/><path d="M1 15h14M1 1v14"/></svg>;
+const IPrice=()=><svg style={SZ} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 3 Q14 3 14 14"/><path d="M1 15h14M1 1v14"/></svg>;
+const ICheck=()=><svg style={SZ} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M3 8l4 4 6-7"/></svg>;
+const IPlay=()=><svg style={SZ} viewBox="0 0 16 16" fill="currentColor"><path d="M4 3l9 5-9 5V3z"/></svg>;
+const IX=()=><svg style={SZ} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 4l8 8M12 4l-8 8"/></svg>;
+const IBook=()=><svg style={SZ} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 4S6.5 3 3 3v9c3.5 0 5 1 5 1s1.5-1 5-1V3c-3.5 0-5 1-5 1zM8 4v9"/></svg>;
+
+// ── Evidence Synthesis tab ────────────────────────────────
+function SynthesisTab({method, setMethod, onSend}) {
+  const strategies = [...new Set(STUDIES.map(s=>s.strategy))];
+  const pooled = {};
+  strategies.forEach(st => { pooled[st] = poolStrategy(STUDIES.filter(s=>s.strategy===st), method); });
+
+  return (
+    <div className="shell" style={{padding:'18px 24px 60px'}}>
+      <div className="target-bar">
+        <div><div className="tb-k">Conversion target</div><div className="tb-v mono">KES · {TARGET_YEAR} · PPP-adjusted</div></div>
+        <div className="target-sep"/>
+        <div><div className="tb-k">Inflation</div><div className="tb-v">GDP deflator → projected to {TARGET_YEAR}</div></div>
+        <div className="target-sep"/>
+        <div><div className="tb-k">Currency</div><div className="tb-v">World Bank PPP factors</div></div>
+        <div style={{flex:1}}/>
+        <span className="tag tag-lit">factors pulled at build time · illustrative</span>
+      </div>
+
+      <div className="card">
+        <div className="card-h">
+          <span>Study cost database — standardisation &amp; pooling</span>
+          <span style={{display:'flex',alignItems:'center',gap:10}}>
+            <span style={{fontSize:10,color:'var(--muted)',textTransform:'none',letterSpacing:0,fontWeight:400}}>Pooling method</span>
+            <span className="seg">
+              {[['mean','Simple mean'],['weighted','Sample-weighted'],['ivw','Inverse-variance']].map(([v,l])=>(
+                <button key={v} className={method===v?'on':''} onClick={()=>setMethod(v)}>{l}</button>
+              ))}
+            </span>
+          </span>
+        </div>
+        <div className="card-b" style={{padding:0,overflowX:'auto'}}>
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Study</th><th>Country</th><th>Yr</th>
+                <th className="num">Reported cost</th>
+                <th className="num step-col">Inflated → {TARGET_YEAR}</th>
+                <th className="num step-col">KES (PPP, {TARGET_YEAR})</th>
+                <th className="num">Effect</th><th className="num">n</th>
+              </tr>
+            </thead>
+            <tbody>
+              {strategies.map(st => {
+                const rows = STUDIES.filter(s=>s.strategy===st).map(s=>({...s, ...standardize(s)}));
+                const p = pooled[st];
+                return (
+                  <React.Fragment key={st}>
+                    <tr className="grp-head"><td colSpan={8}>{st}</td></tr>
+                    {rows.map(r=>(
+                      <tr key={r.id}>
+                        <td><div style={{fontWeight:500}}>{r.author}</div><div className="note">{r.journal}</div></td>
+                        <td>{r.factor.country}</td>
+                        <td className="mono">{r.year}</td>
+                        <td className="num mono">{formatCur(r.cost, r.currency)}</td>
+                        <td className="num mono step-col">{formatCur(r.inflated, r.currency)}</td>
+                        <td className="num mono step-col" style={{fontWeight:600}}>{formatCur(r.kes,'KES')}</td>
+                        <td className="num mono">{r.effect.toLocaleString()}</td>
+                        <td className="num mono">{r.n}</td>
+                      </tr>
+                    ))}
+                    <tr className="pool-row">
+                      <td colSpan={3}><span className="pool-lbl">Pooled · {p.n} studies</span></td>
+                      <td className="num note" style={{verticalAlign:'middle'}}>range</td>
+                      <td className="num mono note">{formatCur(p.low,'KES')}–</td>
+                      <td className="num mono">{formatCur(p.cost,'KES')}</td>
+                      <td className="num mono">{Math.round(p.effect).toLocaleString()}</td>
+                      <td className="num mono note">Σ{p.sumN}</td>
+                    </tr>
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:18,gap:16,flexWrap:'wrap'}}>
+        <p className="note" style={{maxWidth:560}}>
+          Each study cost is inflated to {TARGET_YEAR} in its original currency (projected GDP deflator), then PPP-converted to KES.
+          Effects are harmonised to the common outcome internally (1 QALY = 1 DALY). Pooled cost + the across-study range feed the
+          analysis as the point estimate and PSA uncertainty.
+        </p>
+        <button className="btn btn-teal btn-lg" onClick={()=>onSend(pooled)}>Send {strategies.length} strategies to Analysis →</button>
+      </div>
+    </div>
+  );
+}
+
+// ── Provenance drawer (C) ─────────────────────────────────
+function ProvenanceDrawer({strategy, onClose}) {
+  const studies = STUDIES.filter(s=>s.strategy===strategy.name);
+  const p = strategy.pool;
+  const rows = studies.map(s=>({...s, ...standardize(s)}));
+  return (<>
+    <div className="drawer-backdrop" onClick={onClose}/>
+    <div className="drawer narrow">
+      <div className="drawer-h">
+        <div><h2>{strategy.name}</h2><div className="sub">Evidence provenance · {p.n} studies · pooled by {p.method==='mean'?'simple mean':p.method==='weighted'?'sample weighting':'inverse-variance'}</div></div>
+        <button className="icon-btn" onClick={onClose}><IX/></button>
+      </div>
+      <div className="drawer-body">
+        <div className="prov-summary">
+          <div className="prov-stat"><div className="v">{formatCur(p.cost,'KES')}</div><div className="k">Pooled cost (KES {TARGET_YEAR})</div></div>
+          <div className="prov-stat"><div className="v">{formatCur(p.low,'KES')} – {formatCur(p.high,'KES')}</div><div className="k">Across-study range → PSA</div></div>
+          <div className="prov-stat"><div className="v">{Math.round(p.effect).toLocaleString()}</div><div className="k">Pooled effect</div></div>
+        </div>
+        <div className="card">
+          <div className="card-h">Conversion detail</div>
+          <div className="card-b" style={{padding:0,overflowX:'auto'}}>
+            <table className="tbl">
+              <thead><tr><th>Study</th><th>Country</th><th className="num">Reported</th><th className="num">Infl. rate</th><th className="num">PPP factor</th><th className="num">KES {TARGET_YEAR}</th></tr></thead>
+              <tbody>
+                {rows.map(r=>(
+                  <tr key={r.id}>
+                    <td><div style={{fontWeight:500}}>{r.author}</div><div className="note">{r.year} · {r.journal}</div></td>
+                    <td>{r.factor.country}</td>
+                    <td className="num mono">{formatCur(r.cost,r.currency)}</td>
+                    <td className="num mono">{(r.factor.infl*100).toFixed(1)}%/yr</td>
+                    <td className="num mono">{r.factor.pppToKES}</td>
+                    <td className="num mono" style={{fontWeight:600}}>{formatCur(r.kes,'KES')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <p className="note" style={{marginTop:14}}>
+          Factors are pulled from the World Bank API at build time (PPP conversion factors + GDP-deflator series; {TARGET_YEAR} inflation projected).
+          Pipeline per study: inflate in original currency → PPP-convert to KES. Outcome harmonisation (1 QALY = 1 DALY) applied internally.
+        </p>
+      </div>
+    </div>
+  </>);
+}
+
+// ── Results view (drawer) ─────────────────────────────────
+function ResultsView({res, psaData, enablePSA}) {
+  const [tab,setTab]=useState('icer');
+  const rows=calcICER(res.strategies);
+  const threshold=res.params.threshold;
+  const oL=OUTCOME_LABELS[res.params.outcome_type]||'unit';
+  const tabs=[{id:'icer',label:'ICER',icon:<ITable/>},{id:'ceplane',label:'CE Plane',icon:<IScatter/>},{id:'tornado',label:'Tornado',icon:<ITornado/>},
+    ...(enablePSA&&psaData?[{id:'scatter',label:'PSA Scatter',icon:<IScatter/>},{id:'ceac',label:'CEAC',icon:<ICeac/>}]:[]),{id:'price',label:'Price Threshold',icon:<IPrice/>}];
+  const hasCE=rows.some(r=>r.icer!=null&&r.icer<=threshold&&r.status!=='DOM');
+  const best=rows.filter(r=>r.icer!=null&&r.icer<=threshold&&r.status==='ND').sort((a,b)=>a.icer-b.icer)[0];
+  const sorted=[...res.strategies].sort((a,b)=>a.cost-b.cost);
+  const target=sorted[1],refS=sorted[0]; const ie=target?target.effect-refS.effect:1;
+  const breakEven=refS.cost+threshold*ie; const curICER=target?(target.cost-refS.cost)/ie:0;
+  const psaCE=psaData?.filter(it=>{const r=it.find(x=>x.status!=='REF'&&x.icer!=null); return r&&r.icer<=threshold;}).length||0;
+  const pct=psaData?.length?Math.round(psaCE/psaData.length*100):0;
+  return (<div>
+    <div className="rtabs">{tabs.map(t=>(<button key={t.id} className={`rtab ${tab===t.id?'on':''}`} onClick={()=>setTab(t.id)}>{t.icon}{t.label}</button>))}</div>
+    {tab==='icer' && <div className="chart-block">
+      <table className="tbl" style={{marginBottom:20}}>
+        <thead><tr><th>Strategy</th><th className="num mono">Cost</th><th className="num mono">Effect</th><th className="num mono">Inc. Cost</th><th className="num mono">Inc. Effect</th><th className="num mono">ICER</th><th>Status</th></tr></thead>
+        <tbody>{rows.map((r,i)=>(<tr key={i}><td style={{fontWeight:500}}>{r.strategy}</td><td className="num mono">{fmt(r.cost)}</td><td className="num mono">{fmtN(r.effect)}</td><td className="num mono">{r.inc_cost!=null?fmt(r.inc_cost):'—'}</td><td className="num mono">{r.inc_effect!=null?fmtN(r.inc_effect):'—'}</td><td className="num mono">{r.icer!=null?fmt(r.icer):'—'}</td><td>{r.status==='REF'&&<span className="tag tag-ref">Reference</span>}{r.status==='DOM'&&<span className="tag tag-dom">Dominated</span>}{r.status==='ND'&&r.icer<=threshold&&<span className="tag tag-ce">Cost-effective</span>}{r.status==='ND'&&r.icer>threshold&&<span className="tag tag-nce">Not CE</span>}</td></tr>))}</tbody>
+      </table>
+      <div className={`interp ${hasCE?'ok':'warn'}`}>
+        {rows.filter(r=>r.status!=='REF').map((r,i)=>(<div key={i}>{r.status==='DOM'&&<span>• <strong>{r.strategy}</strong> — dominated.</span>}{r.status==='ND'&&r.icer<=threshold&&<span>• <strong>{r.strategy}</strong> — cost-effective at {fmt(r.icer)} per {oL}.</span>}{r.status==='ND'&&r.icer>threshold&&<span>• <strong>{r.strategy}</strong> — not cost-effective ({fmt(r.icer)} per {oL}).</span>}</div>))}
+        <div style={{marginTop:10,fontWeight:700}}>{hasCE?`Recommendation: implement ${best?.strategy}.`:'Recommendation: no intervention is cost-effective at this threshold.'}</div>
+      </div>
+    </div>}
+    {tab==='ceplane' && <div className="chart-block"><div className="chart-title">Cost-Effectiveness Plane</div><div className="chart-sub">Incremental cost vs. effect against reference</div><CEPlanePlot icer_rows={rows} threshold={threshold} outcomeLabel={oL}/></div>}
+    {tab==='tornado' && <div className="chart-block"><div className="chart-title">Tornado Diagram</div><div className="chart-sub">±20% univariate sensitivity on the ICER</div><TornadoPlot strategies={res.strategies} threshold={threshold}/></div>}
+    {tab==='scatter' && psaData && <div className="chart-block"><div className="chart-title">PSA Scatter</div><div className="chart-sub">{psaData.length.toLocaleString()} iterations</div><div className="psa-chips"><span className="chip chip-ce">{pct}% cost-effective</span><span className="chip chip-nce">{100-pct}% not</span></div><PSAScatterPlot strategies={res.strategies} psaData={psaData} threshold={threshold}/></div>}
+    {tab==='ceac' && psaData && <div className="chart-block"><div className="chart-title">Cost-Effectiveness Acceptability Curve</div><div className="chart-sub">Probability cost-effective across WTP thresholds</div><CEACPlot strategies={res.strategies} psaData={psaData}/></div>}
+    {tab==='price' && <div className="chart-block"><div className="chart-title">Price Threshold Analysis</div><div className="chart-sub">Maximum price at which {target?.strategy||'the intervention'} stays cost-effective</div><PriceThresholdPlot strategies={res.strategies} threshold={threshold} outcomeLabel={oL}/>{target&&<div className="pt-grid"><div className="pt-stat"><div className="pt-val">{fmt(target.cost)}</div><div className="pt-lbl">Current Price</div></div><div className="pt-stat"><div className="pt-val" style={{color:breakEven>target.cost?'var(--green)':'var(--red)'}}>{fmt(breakEven)}</div><div className="pt-lbl">Break-even Price</div></div><div className="pt-stat"><div className="pt-val">{fmt(curICER)}</div><div className="pt-lbl">Current ICER</div></div><div className="pt-stat"><div className="pt-val" style={{color:breakEven>target.cost?'var(--green)':'var(--red)'}}>{breakEven>target.cost?'▼':'▲'} {fmt(Math.abs(breakEven-target.cost))}</div><div className="pt-lbl">{breakEven>target.cost?'Headroom':'Reduction'}</div></div></div>}</div>}
+  </div>);
+}
+
+// ── Analysis tab ──────────────────────────────────────────
+function AnalysisTab({strategies, setStrategies, prov, onRun, running, openProv, outcomeType, setOutcomeType, threshold, thresholdType, setThresholdType, shaLevel, setShaLevel, enablePSA, setEnablePSA}) {
+  const rows=calcICER(strategies);
+  const [edit,setEdit]=useState(null); const [val,setVal]=useState('');
+  const start=(r,c)=>{setEdit({r,c}); setVal(String(c==='strategy'?strategies[r].strategy:c==='cost'?strategies[r].cost:strategies[r].effect));};
+  const commit=()=>{if(!edit)return; const u=[...strategies]; const{r,c}=edit; if(c==='strategy')u[r]={...u[r],strategy:val}; else u[r]={...u[r],[c]:parseFloat(val)||0}; setStrategies(u); setEdit(null);};
+  const isE=(r,c)=>edit?.r===r&&edit?.c===c;
+  const cell=(r,c,disp)=>isE(r,c)?<input className="cell-input" type={c==='strategy'?'text':'number'} value={val} autoFocus onChange={e=>setVal(e.target.value)} onBlur={commit} onKeyDown={e=>e.key==='Enter'&&commit()}/>:disp;
+  const ready=strategies.length>=2;
+
+  return (
+    <div className="shell" style={{padding:'18px 24px 60px',display:'grid',gridTemplateColumns:'1.5fr 1fr',gap:18,alignItems:'start'}}>
+      <div className="card">
+        <div className="card-h">Strategies</div>
+        <div className="card-b" style={{padding:0}}>
+          <table className="tbl">
+            <thead><tr><th>Strategy</th><th className="num mono">Cost (KES)</th><th className="num mono">Effect</th><th>Source</th><th>Ref</th><th className="num mono">ICER</th></tr></thead>
+            <tbody>
+              {strategies.map((row,i)=>{
+                const ir=rows.find(r=>r.strategy===row.strategy);
+                const pv=prov[row.strategy];
+                return (
+                  <tr key={i}>
+                    <td className="editable" onDoubleClick={()=>start(i,'strategy')} style={{fontWeight:500}}>{cell(i,'strategy',row.strategy)}</td>
+                    <td className="num mono editable" onDoubleClick={()=>start(i,'cost')}>{cell(i,'cost',row.cost.toLocaleString())}</td>
+                    <td className="num mono editable" onDoubleClick={()=>start(i,'effect')}>{cell(i,'effect',fmtN(row.effect))}</td>
+                    <td>{pv ? <button className="src-btn" onClick={()=>openProv({name:row.strategy, pool:pv})}><IBook/> {pv.n} studies</button> : <span className="tag tag-man">Manual</span>}</td>
+                    <td>{i===0 && <span className="tag tag-ref">Ref</span>}</td>
+                    <td className="num mono">{ir?.status==='REF'?<span style={{color:'var(--faint)'}}>—</span>:ir?.icer!=null?fmt(ir.icer):<span className="tag tag-dom">Dom</span>}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <div style={{padding:'12px 14px',display:'flex',gap:8,borderTop:'1px solid var(--border)'}}>
+            <button className="btn" onClick={()=>setStrategies([...strategies,{strategy:`Strategy ${strategies.length+1}`,cost:0,effect:0}])}>+ Add manual</button>
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-h">Analysis Parameters</div>
+        <div className="card-b">
+          <div className="prm">
+            <span className="prm-lbl">Health Outcome</span>
+            {[['hosp_days','Days of Hospitalisation Averted'],['qaly','QALYs'],['daly','DALYs'],['lyg','Life Years Gained'],['lives','Lives Saved']].map(([v,l])=>(
+              <label key={v} className="radio"><input type="radio" name="oc" checked={outcomeType===v} onChange={()=>setOutcomeType(v)}/>{l}</label>
+            ))}
+          </div>
+          <hr className="rule"/>
+          <div className="prm">
+            <span className="prm-lbl">Threshold</span>
+            {[['gdp','0.5× GDP per capita (154,000)'],['sha','SHA Hospital Rates']].map(([v,l])=>(<label key={v} className="radio"><input type="radio" name="th" checked={thresholdType===v} onChange={()=>setThresholdType(v)}/>{l}</label>))}
+            {thresholdType==='sha' && <select className="field" style={{marginTop:4}} value={shaLevel} onChange={e=>setShaLevel(Number(e.target.value))}><option value={2240}>Level 3 (2,240)</option><option value={3360}>Level 4 (3,360)</option><option value={3920}>Level 5 (3,920)</option><option value={4480}>Level 6 (4,480)</option></select>}
+          </div>
+          <hr className="rule"/>
+          <label className="check"><input type="checkbox" checked={enablePSA} onChange={e=>setEnablePSA(e.target.checked)}/>Probabilistic sensitivity analysis</label>
+          <p className="note" style={{marginTop:6}}>PSA uses the across-study range from synthesis as the uncertainty band where available.</p>
+          <hr className="rule"/>
+          <button className="btn-run" onClick={onRun} disabled={running||!ready}>{running?<><span className="spinner"/> Running…</>:<><IPlay/> Run Analysis</>}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── App ───────────────────────────────────────────────────
+function App() {
+  const [tab,setTab]=useState('synthesis');
+  const [method,setMethod]=useState('weighted');
+  const [strategies,setStrategies]=useState([]);
+  const [prov,setProv]=useState({});           // strategy name -> pool object
+  const [outcomeType,setOutcomeType]=useState('hosp_days');
+  const [thresholdType,setThresholdType]=useState('sha');
+  const [shaLevel,setShaLevel]=useState(3360);
+  const [enablePSA,setEnablePSA]=useState(true);
+  const [res,setRes]=useState(null);
+  const [psaData,setPsaData]=useState(null);
+  const [running,setRunning]=useState(false);
+  const [resultsOpen,setResultsOpen]=useState(false);
+  const [provDrawer,setProvDrawer]=useState(null);
+  const [notif,setNotif]=useState(null);
+
+  const threshold=thresholdType==='gdp'?154000:shaLevel;
+  const notify=m=>{setNotif(m); setTimeout(()=>setNotif(null),3000);};
+
+  const sendToAnalysis=(pooled)=>{
+    const strats=Object.entries(pooled).map(([name,p])=>({strategy:name, cost:Math.round(p.cost), effect:Math.round(p.effect)}));
+    setStrategies(strats);
+    setProv(Object.fromEntries(Object.entries(pooled).map(([name,p])=>[name,p])));
+    setTab('analysis');
+    notify(`${strats.length} synthesised strategies sent to Analysis.`);
+  };
+
+  const runAnalysis=async()=>{
+    setRunning(true); await new Promise(r=>setTimeout(r,650));
+    const psa=enablePSA?runPSA(strategies,400,20):null;
+    setRes({strategies:[...strategies], params:{outcome_type:outcomeType, threshold, threshold_type:thresholdType, sha_level:shaLevel}});
+    setPsaData(psa); setRunning(false); setResultsOpen(true);
+  };
+
+  return (
+    <div>
+      <nav className="nav">
+        <span className="nav-brand">Cost-Effectiveness Analysis</span>
+        <div className="nav-links">
+          <button className={`nav-link ${tab==='synthesis'?'on':''}`} onClick={()=>setTab('synthesis')}><IBook/> Evidence Synthesis</button>
+          <button className={`nav-link ${tab==='analysis'?'on':''}`} onClick={()=>setTab('analysis')}>Analysis {strategies.length>0 && <span className="pip">{strategies.length}</span>}</button>
+          <button className={`nav-link ${tab==='help'?'on':''}`} onClick={()=>setTab('help')}>Help</button>
+        </div>
+      </nav>
+
+      <div className="hero">
+        <h1>{tab==='synthesis'?'Evidence Synthesis':tab==='analysis'?'Cost-Effectiveness Analysis':'Help'}</h1>
+        <p>{tab==='synthesis'?'Standardise published study costs to KES 2027 (PPP + inflation) and pool into strategy estimates':'Comparative analysis of intervention strategies · Kenya · KES'}</p>
+      </div>
+
+      {tab==='synthesis' && <SynthesisTab method={method} setMethod={setMethod} onSend={sendToAnalysis}/>}
+
+      {tab==='analysis' && (strategies.length===0
+        ? <div className="shell" style={{padding:'24px'}}><div className="card"><div className="empty"><IBook/><div className="et">No strategies yet</div><div className="es">Build strategy estimates in the Evidence Synthesis tab and send them here, or add a manual strategy.</div><div style={{display:'flex',gap:8,marginTop:6}}><button className="btn btn-teal" onClick={()=>setTab('synthesis')}>Go to Evidence Synthesis →</button><button className="btn" onClick={()=>setStrategies([{strategy:'Status Quo',cost:2500000,effect:450},{strategy:'New Intervention',cost:6800000,effect:820}])}>Add manual strategies</button></div></div></div></div>
+        : <AnalysisTab strategies={strategies} setStrategies={setStrategies} prov={prov} onRun={runAnalysis} running={running} openProv={setProvDrawer} outcomeType={outcomeType} setOutcomeType={setOutcomeType} threshold={threshold} thresholdType={thresholdType} setThresholdType={setThresholdType} shaLevel={shaLevel} setShaLevel={setShaLevel} enablePSA={enablePSA} setEnablePSA={setEnablePSA}/>)}
+
+      {tab==='help' && <div className="shell" style={{padding:'24px'}}><div className="card"><div className="card-h">How it works</div><div className="card-b">
+        <p style={{marginBottom:10}}><strong>Evidence Synthesis</strong> standardises costs from published studies to a common currency and year (KES, 2027) using World Bank PPP factors and projected GDP-deflator inflation, then pools them per strategy. The across-study range becomes the PSA uncertainty band.</p>
+        <p style={{marginBottom:10}}><strong>Analysis</strong> runs ICERs and sensitivity analysis on those strategies (or manually entered ones). Results open in a side drawer.</p>
+        <p className="note">Every synthesised strategy keeps its provenance — click the "studies" link in the Source column to audit which papers and conversion factors produced each number.</p>
+      </div></div></div>}
+
+      {/* Results drawer */}
+      {resultsOpen && res && (<>
+        <div className="drawer-backdrop" onClick={()=>setResultsOpen(false)}/>
+        <div className="drawer">
+          <div className="drawer-h"><div><h2>Analysis Results</h2><div className="sub">{strategies.length} strategies · {OUTCOME_LABELS[outcomeType]} · threshold KES {threshold.toLocaleString()}</div></div><button className="icon-btn" onClick={()=>setResultsOpen(false)}><IX/></button></div>
+          <div className="drawer-body"><ResultsView res={res} psaData={psaData} enablePSA={enablePSA}/></div>
+        </div>
+      </>)}
+
+      {/* Provenance drawer */}
+      {provDrawer && <ProvenanceDrawer strategy={provDrawer} onClose={()=>setProvDrawer(null)}/>}
+
+      {notif && <div className="notif">{notif}</div>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

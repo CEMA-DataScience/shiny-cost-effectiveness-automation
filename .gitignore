@@ -1,0 +1,16 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+# Google service account credentials — never commit these
+.secrets/
+*.json
+
+# Cached data
+data/factors_cache.rds
+data/interventions_cache.rds
+
+# macOS + local artefacts
+.DS_Store
+*.zip

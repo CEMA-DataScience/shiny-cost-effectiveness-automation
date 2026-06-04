@@ -21,6 +21,10 @@ Imports:
     shinycssloaders,
     shinyjs,
     jsonlite,
-    markdown
+    markdown,
+    wbstats,
+    rvest,
+    httr2,
+    countrycode
 Suggests:
     testthat (>= 3.0.0)

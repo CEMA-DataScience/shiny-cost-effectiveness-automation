@@ -1,165 +1,127 @@
-# Input Module - Strategy input and parameter setting
-# UI and Server functions for the analysis setup
+# mod_input.R
+# Analysis module — strategy entry and parameters only.
+# All results live in the charts drawer (mod_results.R).
 
-#' Input Module UI
-#' @param id Module namespace ID
 mod_input_ui <- function(id) {
   ns <- NS(id)
 
-  div(class = "container-fluid",
+  tagList(
+    tags$head(tags$style(HTML("
+      .anl-wrap { max-width: 1200px; margin: 0 auto; padding: 24px; }
 
-    # Analysis Setup Header
-    fluidRow(
-      column(12,
-        div(class = "alert alert-info",
-          icon("info-circle"),
-          " Configure your cost-effectiveness analysis below, then click 'Run Analysis'"
-        )
-      )
-    ),
+      .anl-pg-hdr {
+        padding: 20px 0 16px; border-bottom: 1px solid #e5e5e5; margin-bottom: 20px;
+      }
+      .anl-pg-hdr h1 { font-size: 22px; font-weight: 700; margin: 0 0 4px; }
+      .anl-pg-hdr p  { font-size: 14px; color: #737373; margin: 0; }
 
-    fluidRow(
+      .anl-card-hdr {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 11px 15px; border-bottom: 1px solid #e5e5e5;
+        background: #fff; border-radius: 4px 4px 0 0;
+      }
+      .anl-card-hdr-lbl {
+        font-size: 11px; font-weight: 700; color: #737373;
+        text-transform: uppercase; letter-spacing: 0.05em;
+      }
+      .anl-tbl-acts { display: flex; gap: 6px; align-items: center; }
 
-      # Strategy Input Panel
-      column(8,
-        div(class = "card",
-          div(class = "card-header bg-primary text-white",
-            h4("📊 Define Strategies", style = "margin: 0;")
-          ),
-          div(class = "card-body",
+      .anl-src-lit { display: inline-block; background: #dff3fb; color: #1c8ec0;
+        font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 2px; }
+      .anl-src-mod { display: inline-block; background: #fef9c3; color: #b45309;
+        font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 2px; }
+      .anl-src-man { display: inline-block; background: #f5f5f4; color: #737373;
+        font-size: 11px; font-weight: 500; padding: 1px 6px; border-radius: 2px;
+        border: 1px solid #e5e5e5; }
 
-            p("💡 Double-click any cell in the table below to edit strategy data:"),
+      .anl-fld-lbl {
+        font-size: 11px; font-weight: 700; color: #737373;
+        text-transform: uppercase; letter-spacing: 0.05em;
+        margin: 12px 0 4px; display: block;
+      }
+      .anl-fld-lbl:first-child { margin-top: 0; }
 
-            # Control buttons
-            fluidRow(
-              column(4,
-                actionButton(ns("add_row"), "Add Strategy",
-                            icon = icon("plus"), class = "btn-success")
-              ),
-              column(4,
-                actionButton(ns("remove_row"), "Remove Last",
-                            icon = icon("minus"), class = "btn-warning")
-              ),
-              column(4,
-                actionButton(ns("load_sample"), "Load Sample Data",
-                            icon = icon("download"), class = "btn-outline-secondary")
+      .anl-run-btn {
+        width: 100% !important; padding: 10px !important;
+        font-size: 14px !important; font-weight: 600 !important;
+      }
+    "))),
+
+    div(class = "anl-wrap",
+
+      div(class = "anl-pg-hdr",
+        tags$h1("Cost-Effectiveness Analysis"),
+        tags$p("Review strategies from Evidence Synthesis, set parameters, then run analysis.")
+      ),
+
+      fluidRow(
+        column(8,
+          div(class = "card",
+            div(class = "anl-card-hdr",
+              span("Strategies", class = "anl-card-hdr-lbl"),
+              div(class = "anl-tbl-acts",
+                actionButton(ns("add_row"), "Add row",
+                  class = "btn btn-sm btn-outline-secondary"),
+                actionButton(ns("remove_row"), "Remove last",
+                  class = "btn btn-sm btn-outline-secondary"),
+                uiOutput(ns("load_sample_btn"), inline = TRUE)
               )
             ),
-
-            br(),
-
-            # Editable strategies table
-            h5("📊 Strategies:"),
-            helpText("First strategy is automatically the reference. Double-click cells to edit."),
-
-            shinycssloaders::withSpinner(
+            div(class = "card-body p-0",
               DT::dataTableOutput(ns("strategies_table"))
             )
-
-          )
           )
         ),
 
-      # Parameters Panel
-      column(4,
-        div(class = "card",
-          div(class = "card-header bg-info text-white",
-            h4("⚙️ Analysis Parameters", style = "margin: 0;")
-          ),
-          div(class = "card-body",
-
-            # Outcome Type
-            h5("Health Outcome Type:"),
-            radioButtons(ns("outcome_type"), "",
-              choices = list(
-                "Quality-Adjusted Life Years (QALYs)" = "qaly",
-                "Disability-Adjusted Life Years (DALYs)" = "daly",
-                "Life Years Gained" = "lyg",
-                "Lives Saved" = "lives",
-                "Days of Hospitalisation Averted" = "hosp_days"
-              ),
-              selected = "hosp_days"
+        column(4,
+          div(class = "card",
+            div(class = "anl-card-hdr",
+              span("Parameters", class = "anl-card-hdr-lbl")
             ),
+            div(class = "card-body",
 
-            hr(),
-
-            # ICER Threshold - Kenyan Context
-            h5("Cost-Effectiveness Threshold (KES):"),
-            div(
-              radioButtons(ns("threshold_type"), "Select threshold:",
-                choices = list(
-                  "0.5× GDP per capita (154,000 KES)" = "gdp",
-                  "SHA Hospital Rates (per day averted)" = "sha"
+              tags$label("Effect measure", class = "anl-fld-lbl"),
+              selectInput(ns("outcome_type"), NULL,
+                choices = c(
+                  "DALYs averted"                   = "daly",
+                  "QALYs gained"                    = "qaly",
+                  "Life years gained"               = "lyg",
+                  "Lives saved"                     = "lives",
+                  "Days of hospitalisation averted" = "hosp_days"
                 ),
-                selected = "sha"
+                selected = "daly",
+                width    = "100%"
               ),
 
-              # SHA rates (conditional)
+              tags$label("Cost-effectiveness threshold", class = "anl-fld-lbl"),
+              radioButtons(ns("threshold_type"), NULL,
+                choices = list(
+                  "0.5× GDP — KES 154,000 per DALY" = "gdp",
+                  "SHA hospital rates"                         = "sha"
+                ),
+                selected = "gdp"
+              ),
               conditionalPanel(
                 condition = paste0("input['", ns("threshold_type"), "'] == 'sha'"),
-                selectInput(ns("sha_level"), "Hospital Level:",
+                selectInput(ns("sha_level"), NULL,
                   choices = list(
-                    "Level 3 (2,240 KES/day)" = 2240,
-                    "Level 4 (3,360 KES/day)" = 3360,
-                    "Level 5 (3,920 KES/day)" = 3920,
-                    "Level 6 (4,480 KES/day)" = 4480
+                    "Level 3 — KES 2,240 / day" = 2240,
+                    "Level 4 — KES 3,360 / day" = 3360,
+                    "Level 5 — KES 3,920 / day" = 3920,
+                    "Level 6 — KES 4,480 / day" = 4480
                   ),
-                  selected = 3360
+                  selected = 3360,
+                  width    = "100%"
                 )
               ),
 
-              # Custom threshold option
-              numericInput(ns("custom_threshold"), "Custom threshold (KES):",
-                          value = 154000, min = 0, step = 1000),
+              hr(),
 
-              helpText("💡 GDP: willing to pay per QALY/DALY; SHA: cost per day of hospitalisation averted")
-            ),
+              uiOutput(ns("validation_msg")),
 
-            hr(),
-
-            # PSA Options
-            h5("Uncertainty Analysis:"),
-            div(
-              checkboxInput(ns("enable_psa"), "Enable Probabilistic Sensitivity Analysis",
-                           value = FALSE),  # Start simple
-
-              conditionalPanel(
-                condition = paste0("input['", ns("enable_psa"), "']"),
-                br(),
-                radioButtons(ns("uncertainty_method"), "Parameter Uncertainty:",
-                  choices = list(
-                    "Standard ±20% (recommended)" = "standard",
-                    "Custom ranges" = "custom"
-                  ),
-                  selected = "standard"
-                ),
-
-                conditionalPanel(
-                  condition = paste0("input['", ns("uncertainty_method"), "'] == 'custom'"),
-                  numericInput(ns("cost_cv"), "Cost CV (%):", value = 20, min = 0, max = 100),
-                  numericInput(ns("effect_cv"), "Effect CV (%):", value = 15, min = 0, max = 100)
-                ),
-
-                numericInput(ns("psa_iterations"), "PSA Iterations:",
-                            value = 1000, min = 100, max = 10000, step = 100)
-              )
-            ),
-
-            hr(),
-
-            # Run Analysis Button
-            div(style = "text-align: center;",
-              actionButton(ns("run_analysis"), "Run Cost-Effectiveness Analysis",
-                          icon = icon("calculator"),
-                          class = "btn-primary btn-lg",
-                          style = "width: 100%; height: 60px; font-size: 16px; font-weight: bold;")
-            ),
-
-            br(),
-
-            # Validation Messages
-            div(id = ns("validation_messages"))
-
+              actionButton(ns("run_analysis"), "Run Analysis",
+                class = "btn btn-primary anl-run-btn")
+            )
           )
         )
       )
@@ -167,186 +129,199 @@ mod_input_ui <- function(id) {
   )
 }
 
-#' Input Module Server
-#' @param id Module namespace ID
-#' @return Reactive values with analysis inputs
-mod_input_server <- function(id) {
-
+#' @param id                Module namespace ID
+#' @param inject_strategies Reactive returning pooled strategy df from Synthesis
+mod_input_server <- function(id, inject_strategies = NULL) {
   moduleServer(id, function(input, output, session) {
 
-    # Reactive values to store table data
+    inject_count <- reactiveVal(0L)
+
     values <- reactiveValues(
       strategies_data = data.frame(
-        strategy = c("Status Quo", "Mass Vaccination"),
-        cost = c(125000, 280000),
-        effect = c(12.5, 18.2),
+        strategy  = c("Status Quo", "Intervention"),
+        cost      = c(100000, 250000),
+        effect    = c(10.0,   16.0),
+        source    = c("manual", "manual"),
+        n_studies = c(NA_integer_, NA_integer_),
         stringsAsFactors = FALSE
       ),
-      analysis_ready = FALSE
+      from_synthesis = FALSE
     )
 
-    # Render editable strategies table
-    output$strategies_table <- DT::renderDataTable({
-
-      # Calculate ICER for display
-      display_data <- values$strategies_data
-      if (nrow(display_data) >= 2) {
-        ref_cost <- display_data$cost[1]
-        ref_effect <- display_data$effect[1]
-
-        display_data$incremental_cost <- display_data$cost - ref_cost
-        display_data$incremental_effect <- display_data$effect - ref_effect
-        display_data$icer <- ifelse(
-          display_data$incremental_effect == 0,
-          "Reference",
-          paste0("KES ", format(round(display_data$incremental_cost / display_data$incremental_effect), big.mark = ","))
+    # ── Accept strategies from Evidence Synthesis ──────────────────────────
+    if (!is.null(inject_strategies)) {
+      observeEvent(inject_strategies(), {
+        d <- inject_strategies()
+        if (is.null(d) || nrow(d) == 0L) return()
+        values$strategies_data <- data.frame(
+          strategy  = d$strategy,
+          cost      = d$cost,
+          effect    = d$effect,
+          source    = d$source,
+          n_studies = d$n_studies,
+          stringsAsFactors = FALSE
         )
-      } else {
-        display_data$icer <- "Reference"
-      }
+        values$from_synthesis <- TRUE
+        inject_count(inject_count() + 1L)
+      }, ignoreNULL = TRUE, ignoreInit = TRUE)
+    }
 
-      # Add reference indicator
-      display_data$reference <- c("✓", rep("", nrow(display_data) - 1))
+    # "Load sample" hidden when populated from Synthesis
+    output$load_sample_btn <- renderUI({
+      if (isTRUE(values$from_synthesis)) return(NULL)
+      actionButton(session$ns("load_sample"), "Load sample",
+        class = "btn btn-sm btn-outline-secondary")
+    })
 
-      # Reorder columns for display
-      display_data <- display_data[, c("strategy", "cost", "effect", "reference", "icer")]
-      names(display_data) <- c("Strategy", "Cost (KES)", "Effect", "Ref", "ICER (KES/unit)")
+    # ── Strategies table ───────────────────────────────────────────────────
+    output$strategies_table <- DT::renderDataTable({
+      d <- values$strategies_data
+      n <- nrow(d)
+      if (n == 0L) return(DT::datatable(data.frame()))
+
+      ref_cost   <- d$cost[1L]
+      ref_effect <- d$effect[1L]
+
+      icer_col <- vapply(seq_len(n), function(i) {
+        if (i == 1L) return("Reference")
+        dc <- d$cost[i]   - ref_cost
+        de <- d$effect[i] - ref_effect
+        if (!is.finite(de) || de == 0) return("—")
+        if (de < 0)                    return("Dominated")
+        paste0("KES ", format(round(dc / de), big.mark = ","))
+      }, character(1L))
+
+      src_col <- vapply(seq_len(n), function(i) {
+        switch(d$source[i],
+          literature = paste0('<span class="anl-src-lit">Lit · ', d$n_studies[i], ' studies</span>'),
+          modified   = '<span class="anl-src-mod">Modified</span>',
+          '<span class="anl-src-man">Manual</span>'
+        )
+      }, character(1L))
+
+      display <- data.frame(
+        Strategy     = d$strategy,
+        `Cost (KES)` = d$cost,
+        Effect       = d$effect,
+        Source       = src_col,
+        ICER         = icer_col,
+        check.names  = FALSE,
+        stringsAsFactors = FALSE
+      )
 
       DT::datatable(
-        display_data,
-        editable = list(target = 'cell', disable = list(columns = c(3, 4))),  # Can't edit Ref or ICER columns
-        options = list(
-          dom = 't',
+        display,
+        escape   = FALSE,
+        editable = list(target = "cell", disable = list(columns = c(3L, 4L))),
+        options  = list(
+          dom        = "t",
           pageLength = 20,
-          scrollX = TRUE,
-          searching = FALSE,
-          ordering = FALSE,
-          autoWidth = FALSE,
+          scrollX    = FALSE,
+          searching  = FALSE,
+          ordering   = FALSE,
+          autoWidth  = FALSE,
           columnDefs = list(
-            list(width = '25%', targets = 0),  # Strategy name
-            list(width = '20%', targets = 1),  # Cost
-            list(width = '15%', targets = 2),  # Effect
-            list(width = '8%', targets = 3),   # Reference
-            list(width = '32%', targets = 4)   # ICER
+            list(width = "28%", targets = 0L),
+            list(width = "20%", targets = 1L),
+            list(width = "12%", targets = 2L),
+            list(width = "18%", targets = 3L),
+            list(width = "22%", targets = 4L)
+          ),
+          rowCallback = DT::JS(
+            "function(row, data, index) {",
+            "  if (index === 0) $(row).css({'font-weight':'600','background':'#fafafa'});",
+            "}"
           )
         ),
-        rownames = FALSE
-      ) %>%
-      DT::formatCurrency(c("Cost (KES)"), currency = "KES ", digits = 0) %>%
-      DT::formatRound(c("Effect"), digits = 0)
+        rownames = FALSE,
+        class    = "table table-sm"
+      ) |>
+        DT::formatCurrency("Cost (KES)", currency = "KES ", digits = 0) |>
+        DT::formatRound("Effect", digits = 1L)
 
     }, server = FALSE)
 
-    # Handle table edits
+    # ── Handle cell edits ──────────────────────────────────────────────────
     observeEvent(input$strategies_table_cell_edit, {
-      info <- input$strategies_table_cell_edit
+      info     <- input$strategies_table_cell_edit
+      row      <- info$row
+      col      <- info$col
+      prev_src <- values$strategies_data$source[row]
 
-      # Get the edited value
-      new_value <- info$value
-      row <- info$row
-      col <- info$col + 1  # DT is 0-indexed, R is 1-indexed
+      if      (col == 0L) values$strategies_data[row, "strategy"] <- as.character(info$value)
+      else if (col == 1L) values$strategies_data[row, "cost"]     <- as.numeric(info$value)
+      else if (col == 2L) values$strategies_data[row, "effect"]   <- as.numeric(info$value)
 
-      # Update the strategies data
-      if (col == 1) {  # Strategy name
-        values$strategies_data[row, "strategy"] <- new_value
-      } else if (col == 2) {  # Cost
-        values$strategies_data[row, "cost"] <- as.numeric(new_value)
-      } else if (col == 3) {  # Effect
-        values$strategies_data[row, "effect"] <- as.numeric(new_value)
-      }
+      if (col %in% c(0L, 1L, 2L))
+        values$strategies_data[row, "source"] <-
+          if (prev_src == "literature") "modified" else "manual"
     })
 
-    # Add new row
+    # ── Row add / remove ───────────────────────────────────────────────────
     observeEvent(input$add_row, {
       new_row <- data.frame(
-        strategy = paste("Strategy", nrow(values$strategies_data) + 1),
-        cost = 0,
-        effect = 0,
+        strategy  = paste0("Strategy ", nrow(values$strategies_data) + 1L),
+        cost = 0, effect = 0,
+        source    = "manual",
+        n_studies = NA_integer_,
         stringsAsFactors = FALSE
       )
       values$strategies_data <- rbind(values$strategies_data, new_row)
-      showNotification("New strategy added. Double-click cells to edit.", duration = 3, type = "message")
+      values$from_synthesis  <- FALSE
     })
 
-    # Remove last row
     observeEvent(input$remove_row, {
-      if (nrow(values$strategies_data) > 2) {
+      if (nrow(values$strategies_data) > 2L)
         values$strategies_data <- values$strategies_data[-nrow(values$strategies_data), ]
-        showNotification("Last strategy removed.", duration = 2, type = "message")
-      } else {
-        showNotification("Need at least 2 strategies for comparison.", duration = 3, type = "warning")
-      }
+      else
+        showNotification("Need at least 2 strategies.", type = "warning", duration = 3)
     })
 
-    # Load sample data
     observeEvent(input$load_sample, {
-      sample_data <- create_sample_data()
-      values$strategies_data <- sample_data
-      showNotification("Sample data loaded (3 strategies)!", duration = 2, type = "message")
+      s <- create_sample_data()
+      s$source    <- "manual"
+      s$n_studies <- NA_integer_
+      values$strategies_data <- s
+      values$from_synthesis  <- FALSE
     })
 
-    # Get clean strategies data
-    strategies_clean <- reactive({
-      values$strategies_data
+    # ── Validation ─────────────────────────────────────────────────────────
+    validation_result <- reactive(validate_cea_data(values$strategies_data))
+
+    output$validation_msg <- renderUI({
+      v   <- validation_result()
+      cls <- if (v$valid) "alert alert-success" else "alert alert-warning"
+      txt <- if (v$valid)
+        paste0("Ready — ", nrow(values$strategies_data), " strategies")
+      else v$message
+      div(class = cls,
+          style = "margin-bottom:10px; padding:8px 12px; font-size:13px;", txt)
     })
 
-    # Validation
-    validation_result <- reactive({
-      validate_cea_data(strategies_clean())
-    })
-
-    # Update validation messages
-    observe({
-      validation <- validation_result()
-
-      if (!validation$valid) {
-        output$validation_messages <- renderUI({
-          div(class = "alert alert-warning",
-            icon("exclamation-triangle"),
-            " ", validation$message
-          )
-        })
-        values$analysis_ready <- FALSE
-      } else {
-        output$validation_messages <- renderUI({
-          div(class = "alert alert-success",
-            icon("check"),
-            " Ready for analysis (", nrow(strategies_clean()), " strategies)"
-          )
-        })
-        values$analysis_ready <- TRUE
-      }
-    })
-
-    # Return reactive analysis inputs
+    # ── Return interface ───────────────────────────────────────────────────
     list(
-      strategies_data = strategies_clean,
+      strategies_data = reactive(values$strategies_data),
       parameters = reactive({
-
-        # Calculate threshold based on selection
-        threshold_value <- if (input$threshold_type == "gdp") {
-          154000  # 0.5 GDP per capita
-        } else if (input$threshold_type == "sha") {
-          as.numeric(input$sha_level)  # Selected SHA rate
-        } else {
-          input$custom_threshold
-        }
-
+        thr <- if (input$threshold_type == "gdp") 154000 else as.numeric(input$sha_level)
+        ol  <- switch(input$outcome_type,
+          daly      = "DALY averted",
+          qaly      = "QALY gained",
+          lyg       = "life year gained",
+          lives     = "life saved",
+          hosp_days = "day of hospitalisation averted"
+        )
         list(
-          outcome_type = input$outcome_type,
-          threshold = threshold_value,
+          outcome_type   = input$outcome_type,
+          outcome_label  = ol,
+          threshold      = thr,
           threshold_type = input$threshold_type,
-          sha_level = input$sha_level,
-          enable_psa = input$enable_psa,
-          uncertainty_method = input$uncertainty_method,
-          cost_cv = input$cost_cv,
-          effect_cv = input$effect_cv,
-          psa_iterations = input$psa_iterations
+          sha_level      = input$sha_level,
+          psa_enabled    = FALSE
         )
       }),
-      analysis_ready = reactive(values$analysis_ready),
-      run_trigger = reactive(input$run_analysis)
+      analysis_ready = reactive(validation_result()$valid),
+      run_trigger    = reactive(input$run_analysis),
+      injected_count = inject_count
     )
-
   })
 }

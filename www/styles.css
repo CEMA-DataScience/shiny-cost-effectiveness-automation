@@ -1,0 +1,586 @@
+/* ============================================================
+   Clinical Academic Design System
+   Cost-Effectiveness Analysis Tool
+   ============================================================ */
+
+/* ── Google Fonts ─────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+/* ── Design Tokens ────────────────────────────────────────── */
+:root {
+  --ink:       #0a0a0a;
+  --ink-soft:  #404040;
+  --teal:      #27AAE1;
+  --teal-lt:   #dff3fb;
+  --teal-dk:   #1c8ec0;
+  --clay:      #0369a1;
+  --clay-lt:   #e0f2fe;
+  --amber:     #b45309;
+  --amber-lt:  #fef9c3;
+  --muted:     #737373;
+  --faint:     #e5e5e5;
+  --surface:   #ffffff;
+  --panel:     #fafafa;
+  --page-bg:   #ffffff;
+  --radius:    4px;
+  --font-ui:   'Archivo', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
+}
+
+/* ── Base ─────────────────────────────────────────────────── */
+body {
+  font-family: var(--font-ui);
+  color: var(--ink);
+  background-color: var(--page-bg);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* ── Navbar ───────────────────────────────────────────────── */
+.navbar {
+  min-height: 52px;
+  background-color: var(--surface) !important;
+  border-bottom: 2px solid var(--ink);
+  box-shadow: none;
+  padding: 0 24px;
+}
+
+.navbar-brand {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--ink) !important;
+  letter-spacing: -0.01em;
+  padding: 0;
+  line-height: 52px;
+}
+
+.navbar-nav > li > a {
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--muted) !important;
+  padding: 0 16px !important;
+  line-height: 50px;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.navbar-nav > li > a:hover {
+  color: var(--ink) !important;
+  background: transparent !important;
+  border-bottom-color: var(--faint);
+}
+
+.navbar-nav > li.active > a,
+.navbar-nav > li.active > a:focus,
+.navbar-nav > li.active > a:hover,
+.navbar-nav .nav-link.active,
+.navbar-nav .nav-link.active:focus,
+.navbar-nav .nav-link.active:hover {
+  color: var(--ink) !important;
+  background: transparent !important;
+  border-bottom: 2px solid var(--teal);
+  font-weight: 600;
+}
+
+/* ── Page layout ──────────────────────────────────────────── */
+.tab-content > .tab-pane {
+  padding: 24px 0;
+}
+
+.container-fluid {
+  max-width: 1320px;
+}
+
+/* ── Cards ────────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--faint) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: none !important;
+  margin-bottom: 20px;
+}
+
+.card-header {
+  background: var(--surface) !important;
+  border-bottom: 1px solid var(--faint) !important;
+  padding: 12px 16px !important;
+  border-radius: var(--radius) var(--radius) 0 0 !important;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted) !important;
+}
+
+/* Override Bootstrap colour variants on card headers */
+.card-header.bg-primary,
+.card-header.bg-info,
+.card-header.bg-success,
+.card-header.bg-warning,
+.card-header.bg-danger {
+  background: var(--surface) !important;
+  color: var(--muted) !important;
+}
+
+.card-body {
+  padding: 16px !important;
+}
+
+/* ── Section page header (replaces gradient banner) ───────── */
+.page-header-block {
+  padding: 20px 0 16px 0;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--faint);
+}
+
+.page-header-block h1 {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 4px 0;
+  color: var(--ink);
+}
+
+.page-header-block p {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* ── Tables ───────────────────────────────────────────────── */
+.table {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.table thead th {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  border-bottom: 2px solid var(--faint) !important;
+  border-top: none !important;
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+
+.table tbody td {
+  padding: 8px 10px;
+  border-color: var(--faint) !important;
+  vertical-align: middle;
+}
+
+/* Monospace numeric columns */
+.table tbody td:not(:first-child) {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+  background-color: #fafafa;
+}
+
+/* DataTables overrides */
+.dataTables_wrapper {
+  font-family: var(--font-ui);
+}
+
+.dataTables_wrapper .dataTables_info,
+.dataTables_wrapper .dataTables_length,
+.dataTables_wrapper .dataTables_filter {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ── Buttons ──────────────────────────────────────────────── */
+.btn {
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 13px;
+  border-radius: var(--radius);
+  padding: 6px 14px;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.btn-primary,
+.btn-primary:focus {
+  background-color: var(--teal) !important;
+  border-color: var(--teal) !important;
+  color: #fff !important;
+}
+
+.btn-primary:hover {
+  background-color: var(--teal-dk) !important;
+  border-color: var(--teal-dk) !important;
+}
+
+.btn-success {
+  background-color: var(--teal) !important;
+  border-color: var(--teal) !important;
+  color: #fff !important;
+}
+
+.btn-success:hover {
+  background-color: var(--teal-dk) !important;
+  border-color: var(--teal-dk) !important;
+}
+
+.btn-warning {
+  background-color: var(--clay-lt) !important;
+  border-color: var(--clay) !important;
+  color: var(--clay) !important;
+}
+
+.btn-warning:hover {
+  background-color: #fde68a !important;
+}
+
+.btn-outline-secondary {
+  border-color: var(--faint) !important;
+  color: var(--muted) !important;
+  background: transparent !important;
+}
+
+.btn-outline-secondary:hover {
+  background: var(--panel) !important;
+  color: var(--ink) !important;
+}
+
+.btn-lg {
+  font-size: 14px !important;
+  padding: 10px 20px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.01em;
+}
+
+/* ── Status / ICER tags ───────────────────────────────────── */
+.tag-dominated {
+  display: inline-block;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 2px;
+  background: #fee2e2;
+  color: #b91c1c;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.tag-cost-saving {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 2px;
+  background: var(--teal-lt);
+  color: var(--teal-dk);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.tag-cost-effective {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 2px;
+  background: var(--clay-lt);
+  color: var(--clay);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.tag-amber-flag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 2px;
+  background: var(--amber-lt);
+  color: var(--amber);
+}
+
+/* ── Alert overrides ──────────────────────────────────────── */
+.alert {
+  border-radius: var(--radius);
+  font-size: 13px;
+  border-left-width: 3px;
+}
+
+.alert-info {
+  background: #f0fdfa;
+  border-color: var(--teal);
+  color: var(--teal-dk);
+}
+
+.alert-warning {
+  background: var(--amber-lt);
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
+.alert-success {
+  background: var(--teal-lt);
+  border-color: var(--teal);
+  color: var(--teal-dk);
+}
+
+/* ── Form controls ────────────────────────────────────────── */
+.form-control {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  border-color: var(--faint);
+  border-radius: var(--radius);
+  color: var(--ink);
+}
+
+.form-control:focus {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.15);
+}
+
+label,
+.control-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+/* Radio / checkbox labels — don't uppercase those */
+.radio label,
+.checkbox label,
+.radio-inline label,
+.shiny-input-radiogroup label {
+  text-transform: none;
+  font-weight: 400;
+  font-size: 13px;
+  letter-spacing: 0;
+  color: var(--ink);
+}
+
+/* ── Synthesis module specific ────────────────────────────── */
+.synth-target-bar {
+  background: var(--surface);
+  border: 1px solid var(--faint);
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.synth-target-bar strong {
+  color: var(--teal);
+  font-family: var(--font-mono);
+}
+
+.synth-pooled-row {
+  background: #f0fdfa !important;
+  font-weight: 600;
+}
+
+.synth-pooled-row td {
+  border-top: 2px solid var(--teal) !important;
+}
+
+/* CEMA brand colour tokens for reference */
+/* Primary: #27AAE1  Orange: #FE7501  Navy: #084887  Yellow: #EFCA08 */
+/* Green: #497048    Cyan: #006D77    Purple: #8E44AD  Pink: #D11060  */
+
+/* ── HR dividers ──────────────────────────────────────────── */
+hr {
+  border-color: var(--faint);
+  margin: 16px 0;
+}
+
+/* ── Spinner override ─────────────────────────────────────── */
+.shiny-spinner-output-container .load-container .load7 .loader,
+.shiny-spinner-output-container .load-container .load7 .loader:before,
+.shiny-spinner-output-container .load-container .load7 .loader:after {
+  background: var(--teal);
+}
+
+/* ── Results drawer ───────────────────────────────────────── */
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 10, 10, 0.35);
+  z-index: 1039;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.drawer-overlay.drawer-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.results-drawer {
+  position: fixed;
+  top: 52px;           /* matches navbar height */
+  right: 0;
+  width: 720px;
+  max-width: 90vw;
+  height: calc(100vh - 52px);
+  background: var(--surface);
+  border-left: 1px solid var(--faint);
+  z-index: 1040;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.results-drawer.drawer-open {
+  transform: translateX(0);
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--faint);
+  flex-shrink: 0;
+  background: var(--surface);
+}
+
+.drawer-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--radius);
+}
+
+.drawer-close:hover {
+  background: var(--page-bg);
+  color: var(--ink);
+}
+
+.drawer-body {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.drawer-tab-body {
+  padding: 16px;
+}
+
+/* Nav-pills inside drawer — flat underline tabs */
+.results-drawer .nav-pills {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--faint);
+  padding: 0 16px;
+  gap: 0;
+  background: var(--surface);
+  flex-shrink: 0;
+  display: flex;
+}
+
+.results-drawer .nav-pills > li > a {
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted) !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  padding: 10px 14px !important;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  white-space: nowrap;
+}
+
+.results-drawer .nav-pills > li.active > a,
+.results-drawer .nav-pills > li.active > a:hover,
+.results-drawer .nav-pills > li.active > a:focus,
+.results-drawer .nav-pills .nav-link.active,
+.results-drawer .nav-pills .nav-link.active:hover,
+.results-drawer .nav-pills .nav-link.active:focus {
+  color: var(--ink) !important;
+  background: transparent !important;
+  border-bottom-color: var(--teal);
+  font-weight: 600;
+}
+
+.results-drawer .nav-pills > li > a:hover {
+  color: var(--ink) !important;
+  background: transparent !important;
+}
+
+.results-drawer .tab-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Block D plot placeholders */
+.plot-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 280px;
+  background: var(--page-bg);
+  border: 1px dashed var(--faint);
+  border-radius: var(--radius);
+  text-align: center;
+  padding: 32px;
+  color: var(--muted);
+}
+
+.plot-placeholder-label {
+  font-weight: 600;
+  font-size: 13px;
+  margin: 0 0 4px;
+  color: var(--ink);
+}
+
+.plot-placeholder-sub {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* PSA disabled message */
+.psa-disabled-msg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  padding: 32px;
+}
+
+.psa-disabled-msg p {
+  font-size: 13px;
+  text-align: center;
+  max-width: 300px;
+}

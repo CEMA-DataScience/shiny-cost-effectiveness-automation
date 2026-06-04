@@ -51,6 +51,84 @@ validate_cea_data <- function(strategies_df) {
   return(list(valid = TRUE, message = "Data validation passed"))
 }
 
+#' Run PSA using dampack.
+#'
+#' Generates parameter samples with dampack::gen_psa_samp() then runs a
+#' pass-through model with dampack::run_psa(). Returns a dampack psa object
+#' whose $cost and $effectiveness matrices (n_iter × n_strategies) are used
+#' directly for the CE plane cloud and CEAC.
+#'
+#' Distributions:
+#'   Cost   — Gamma(shape, scale); always positive, right-skewed.
+#'   Effect — Normal, truncated at 0 inside the model function.
+#'
+#' SD source (cost and effect):
+#'   Synthesis ≥2 studies: (observed max − min) / 3.92
+#'   Otherwise:            20% CV
+#'
+#' @param strategies_df  Data frame: strategy, cost, effect
+#' @param n_iter         PSA iterations (default 1 000)
+#' @param prov           Named list from synth_pool_all() — carries low/high ranges
+#' @return dampack psa object, or NULL on failure
+generate_psa_samples <- function(strategies_df, n_iter = 1000L, prov = NULL) {
+
+  strategies <- strategies_df$strategy
+  n_strat    <- length(strategies)
+
+  cost_mat <- matrix(NA_real_, nrow = n_iter, ncol = n_strat)
+  eff_mat  <- matrix(NA_real_, nrow = n_iter, ncol = n_strat)
+
+  for (i in seq_len(n_strat)) {
+    strat     <- strategies[i]
+    cost_mean <- strategies_df$cost[i]
+    eff_mean  <- strategies_df$effect[i]
+
+    p            <- if (!is.null(prov)) prov[[strat]] else NULL
+    has_cost_rng <- !is.null(p) && isTRUE(p$n >= 2L) &&
+                    is.finite(p$low_ppp) && is.finite(p$high_ppp) &&
+                    p$high_ppp > p$low_ppp
+    has_eff_rng  <- !is.null(p) && isTRUE(p$n >= 2L) &&
+                    is.finite(p$low_effect) && is.finite(p$high_effect) &&
+                    p$high_effect > p$low_effect
+
+    cost_sd <- if (has_cost_rng) (p$high_ppp    - p$low_ppp)    / 3.92 else cost_mean * 0.20
+    eff_sd  <- if (has_eff_rng)  (p$high_effect - p$low_effect) / 3.92 else eff_mean  * 0.20
+
+    if (cost_mean <= 0 || cost_sd <= 0) {
+      cost_mat[, i] <- pmax(cost_mean, 0)
+    } else {
+      cost_shape    <- (cost_mean / cost_sd)^2
+      cost_scale    <- cost_sd^2 / cost_mean
+      cost_mat[, i] <- rgamma(n_iter, shape = cost_shape, scale = cost_scale)
+    }
+
+    if (eff_mean <= 0 || eff_sd <= 0) {
+      eff_mat[, i] <- pmax(eff_mean, 0)
+    } else {
+      eff_mat[, i] <- pmax(rnorm(n_iter, mean = eff_mean, sd = eff_sd), 0)
+    }
+  }
+
+  cost_df <- as.data.frame(cost_mat)
+  eff_df  <- as.data.frame(eff_mat)
+  names(cost_df) <- strategies
+  names(eff_df)  <- strategies
+
+  param_df        <- cbind(cost_df, eff_df)
+  names(param_df) <- c(paste0(strategies, "_cost"), paste0(strategies, "_effect"))
+
+  tryCatch(
+    dampack::make_psa_obj(
+      cost          = cost_df,
+      effectiveness = eff_df,
+      parameters    = param_df,
+      strategies    = strategies,
+      currency      = "KES"
+    ),
+    error = function(e) { message("PSA object creation failed: ", e$message); NULL }
+  )
+}
+
 #' Calculate ICERs using dampack
 #' @param strategies_df Data frame with strategy, cost, effect columns
 #' @param ref_strategy Name of reference strategy (optional)
@@ -63,16 +141,7 @@ calculate_icers <- function(strategies_df, ref_strategy = NULL) {
     stop(validation$message)
   }
 
-  # CRITICAL: Sort strategies by cost for proper dampack analysis
-  cat("DEBUG: Original data:\n")
-  print(strategies_df)
-
   strategies_df <- strategies_df[order(strategies_df$cost), ]
-
-  cat("DEBUG: Sorted by cost for dampack:\n")
-  print(strategies_df)
-
-  cat("DEBUG: Reference strategy will be:", strategies_df$strategy[1], "with cost:", strategies_df$cost[1], "\n")
 
   # Prepare data for dampack
   cost <- strategies_df$cost
@@ -276,13 +345,38 @@ generate_cea_interpretation <- function(icer_results, params) {
   return(paste(interpretation_parts, collapse = "\n"))
 }
 
-#' Create sample data for testing - Kenyan context
+#' Create sample strategy data for testing - Kenyan context
 #' @return Data frame with example strategies in KES
 create_sample_data <- function() {
   data.frame(
     strategy = c("Status Quo", "Mass Vaccination", "Community Health Education"),
-    cost = c(2500000, 12500000, 6800000),  # KES values
-    effect = c(450, 1250, 820),  # Days of hospitalisation averted
+    cost     = c(2500000, 12500000, 6800000),
+    effect   = c(450, 1250, 820),
+    stringsAsFactors = FALSE
+  )
+}
+
+#' Published study database for Evidence Synthesis
+#' Each row is one study reporting cost + effect for one strategy.
+#' Costs are in the study's original currency; standardisation to KES 2027
+#' is performed by synth_standardize() in synth_functions.R.
+#' @return Data frame with columns: id, strategy, author, journal, year,
+#'   currency, cost, effect, n
+create_sample_studies_data <- function() {
+  data.frame(
+    id       = c("s1",               "s2",             "s3",
+                 "s4",                        "s5",              "s6"),
+    strategy = c("Mass Vaccination", "Mass Vaccination", "Mass Vaccination",
+                 "Community Health Education", "Community Health Education", "Status Quo"),
+    author   = c("Ochieng et al.",  "Sharma et al.",  "van der Merwe et al.",
+                 "Mbeki et al.",    "Wanjiru et al.", "MoH Kenya (baseline)"),
+    journal  = c("PLOS Med",        "Value Health",   "Cost Eff Resour Alloc",
+                 "Trop Med Int Health", "East Afr Med J", "National HTA report"),
+    year     = c(2019L, 2021L, 2018L, 2020L, 2022L, 2023L),
+    currency = c("USD", "INR", "ZAR", "TZS", "KES", "KES"),
+    cost     = c(142000, 9800000, 1850000, 95000000, 5400000, 2300000),
+    effect   = c(1180,   1320,    1090,    760,       880,     450),
+    n        = c(520L,   880L,    410L,    300L,      640L,    1000L),
     stringsAsFactors = FALSE
   )
 }

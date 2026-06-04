@@ -1,0 +1,13 @@
+name: cema-shiny-cea
+title: cema-shiny-cea
+username: cema
+account: cema
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 17460886
+bundleId: 12081947
+url: https://cema.shinyapps.io/cema-shiny-cea/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: Cost-Effectiveness Shiny.zip|data/arthoplasty.csv|data/caffeine-citrate.csv|data/demo_arthroplasty.csv|data/factors_cache.rds|design_handoff_cea_synthesis/CEA Synthesis.html|design_handoff_cea_synthesis/CEA Tool (Clinical).html|design_handoff_cea_synthesis/cea-charts.jsx|design_handoff_cea_synthesis/README.md|design_handoff_cea_synthesis/synthesis-data.jsx

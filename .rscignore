@@ -1,0 +1,15 @@
+# Files excluded from shinyapps.io deployment bundle
+
+# Design assets — not needed at runtime
+design_handoff_cea_synthesis/
+
+# Cached data — regenerated at startup
+data/
+
+# Repo-only files
+README.md
+.Rbuildignore
+
+# Local artefacts
+*.zip
+.DS_Store
