@@ -7,10 +7,12 @@
 .secrets/
 *.json
 
-# Cached data
-data/factors_cache.rds
-data/interventions_cache.rds
-
 # macOS + local artefacts
 .DS_Store
 *.zip
+
+# Design handover files — kept locally, not versioned
+design_handoff_cea_synthesis/
+
+# shinyapps.io deployment metadata — recreated on deploy
+rsconnect/
