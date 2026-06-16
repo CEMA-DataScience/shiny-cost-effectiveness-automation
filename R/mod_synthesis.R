@@ -248,6 +248,22 @@ mod_synthesis_server <- function(id, factors, interventions,
       d[keep, ]
     })
 
+    # ── Outcome measure per strategy (for propagation to analysis tab) ──────
+    outcome_by_strategy <- reactive({
+      d <- included_studies()
+      if (nrow(d) == 0L || !"outcome_measure" %in% names(d)) return(list())
+      strat_val <- ifelse(
+        !is.na(d$strategy) & nzchar(trimws(as.character(d$strategy))),
+        as.character(d$strategy),
+        input$selected_intervention
+      )
+      strategies <- unique(strat_val)
+      sapply(setNames(strategies, strategies), function(s) {
+        oms <- unique(d$outcome_measure[strat_val == s & !is.na(d$outcome_measure)])
+        if (length(oms) == 1L) oms else if (length(oms) == 0L) NA_character_ else "mixed"
+      }, USE.NAMES = TRUE)
+    })
+
     # ── Pooled data ─────────────────────────────────────────────────────────
     pooled_data <- reactive({
       d <- included_studies()
@@ -416,7 +432,20 @@ mod_synthesis_server <- function(id, factors, interventions,
                 if (!is.null(std)) fmt_kes(std$kes_ppp_yr) else "—"),
               tags$td(class = "synth-r synth-step synth-kes",
                 if (!is.null(std)) fmt_kes(std$kes_ppp) else "—"),
-              tags$td(class = "synth-r", format(as.numeric(s$effect %||% NA), big.mark = ",")),
+              tags$td(class = "synth-r",
+                format(as.numeric(s$effect %||% NA), big.mark = ","),
+                if (!is.na(s$outcome_measure %||% NA) && nzchar(s$outcome_measure %||% ""))
+                  tags$br(),
+                if (!is.na(s$outcome_measure %||% NA) && nzchar(s$outcome_measure %||% ""))
+                  tags$small(style = "color:#737373; font-size:10px;",
+                    switch(s$outcome_measure,
+                      daly      = "DALY",
+                      qaly      = "QALY",
+                      lyg       = "LY",
+                      lives     = "lives",
+                      hosp_days = "hosp. days",
+                      s$outcome_measure))
+              ),
               tags$td(class = "synth-r", format(as.integer(s$n %||% NA), big.mark = ",")),
               tags$td(class = "synth-r synth-reported-icer", {
                 ri <- suppressWarnings(as.numeric(s$reported_icer %||% NA))
@@ -461,7 +490,18 @@ mod_synthesis_server <- function(id, factors, interventions,
               tags$td(class = "synth-r synth-step", "—"),
               tags$td(class = "synth-r synth-step", fmt_kes(pool$cost_ppp_yr)),
               tags$td(class = "synth-r synth-step synth-kes", fmt_kes(pool$cost_ppp)),
-              tags$td(class = "synth-r", round(pool$effect, 1L)),
+              tags$td(class = "synth-r",
+                round(pool$effect, 1L),
+                {
+                  om <- outcome_by_strategy()[[strat]]
+                  if (!is.null(om) && !is.na(om) && om != "mixed")
+                    tagList(tags$br(),
+                      tags$small(style = "color:#737373; font-size:10px;",
+                        switch(om, daly="DALY", qaly="QALY", lyg="LY",
+                               lives="lives", hosp_days="hosp. days", om)))
+                  else NULL
+                }
+              ),
               tags$td(class = "synth-r", format(pool$sum_n, big.mark = ",")),
               tags$td(class = "synth-r", icer_cell)
             )
@@ -476,7 +516,19 @@ mod_synthesis_server <- function(id, factors, interventions,
         }
       }
 
+      # Mixed-outcome warning for included studies
+      obs <- outcome_by_strategy()
+      mixed_om_warning <- if (length(obs) > 0 && any(obs == "mixed", na.rm = TRUE)) {
+        div(class = "alert alert-warning",
+          style = "font-size:12px; padding:8px 12px; margin-bottom:8px;",
+          tags$strong("Mixed outcome types detected. "),
+          "Pooling effects across different outcome measures is methodologically unsound. ",
+          "Uncheck inconsistent studies before sending to analysis."
+        )
+      } else NULL
+
       tagList(
+        mixed_om_warning,
         demo_banner,
         tags$table(class = "synth-table",
           tags$thead(header),
@@ -502,14 +554,16 @@ mod_synthesis_server <- function(id, factors, interventions,
         return()
       }
 
+      obs     <- outcome_by_strategy()
       sent_df <- do.call(rbind, lapply(strategies, function(strat) {
         p <- pd[[strat]]
         data.frame(
-          strategy  = strat,
-          cost      = p$cost_ppp,
-          effect    = p$effect,
-          source    = "literature",
-          n_studies = p$n,
+          strategy        = strat,
+          cost            = p$cost_ppp,
+          effect          = p$effect,
+          source          = "literature",
+          n_studies       = p$n,
+          outcome_measure = obs[[strat]] %||% NA_character_,
           stringsAsFactors = FALSE
         )
       }))

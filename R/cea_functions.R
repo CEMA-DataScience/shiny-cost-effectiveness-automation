@@ -259,21 +259,16 @@ generate_cea_interpretation <- function(icer_results, params) {
     return("Analysis failed. Please check your input data.")
   }
 
-  results_df <- icer_results$results
-  threshold <- params$threshold
+  results_df   <- icer_results$results
+  threshold    <- params$threshold
   outcome_type <- params$outcome_type
-  threshold_type <- params$threshold_type
 
-  # Get threshold description
-  threshold_desc <- if (threshold_type == "gdp") {
-    "0.5× GDP per capita (KES 154,000)"
-  } else if (threshold_type == "sha") {
-    sha_level <- switch(as.character(params$sha_level),
-      "2240" = "Level 3", "3360" = "Level 4",
-      "3920" = "Level 5", "4480" = "Level 6")
-    paste0("SHA ", sha_level, " rate (KES ", format(threshold, big.mark = ","), " per day averted)")
+  # Get threshold description from named thresholds vector (if available)
+  threshold_desc <- if (!is.null(params$thresholds) && length(params$thresholds) > 0) {
+    tv <- params$thresholds
+    paste(paste0(names(tv), " (KES ", format(tv, big.mark = ","), ")"), collapse = ", ")
   } else {
-    paste0("custom threshold (KES ", format(threshold, big.mark = ","), ")")
+    paste0("KES ", format(threshold, big.mark = ","))
   }
 
   # Outcome unit

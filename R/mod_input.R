@@ -93,27 +93,8 @@ mod_input_ui <- function(id) {
                 width    = "100%"
               ),
 
-              tags$label("Cost-effectiveness threshold", class = "anl-fld-lbl"),
-              radioButtons(ns("threshold_type"), NULL,
-                choices = list(
-                  "0.5× GDP — KES 154,000 per DALY" = "gdp",
-                  "SHA hospital rates"                         = "sha"
-                ),
-                selected = "gdp"
-              ),
-              conditionalPanel(
-                condition = paste0("input['", ns("threshold_type"), "'] == 'sha'"),
-                selectInput(ns("sha_level"), NULL,
-                  choices = list(
-                    "Level 3 — KES 2,240 / day" = 2240,
-                    "Level 4 — KES 3,360 / day" = 3360,
-                    "Level 5 — KES 3,920 / day" = 3920,
-                    "Level 6 — KES 4,480 / day" = 4480
-                  ),
-                  selected = 3360,
-                  width    = "100%"
-                )
-              ),
+              tags$label("Cost-effectiveness thresholds", class = "anl-fld-lbl"),
+              uiOutput(ns("threshold_ui")),
 
               hr(),
 
@@ -148,6 +129,35 @@ mod_input_server <- function(id, inject_strategies = NULL) {
       from_synthesis = FALSE
     )
 
+    # ── Outcome-reactive threshold UI ─────────────────────────────────────
+    output$threshold_ui <- renderUI({
+      ot  <- input$outcome_type %||% "daly"
+      sns <- session$ns
+      if (ot %in% c("daly", "qaly")) {
+        checkboxGroupInput(sns("gdp_thresholds"), NULL,
+          choices = c(
+            "0.5× GDP — KES 154,000" = "154000",
+            "1× GDP — KES 308,000"   = "308000",
+            "3× GDP — KES 924,000"   = "924000"
+          ),
+          selected = c("154000", "308000", "924000")
+        )
+      } else if (ot == "hosp_days") {
+        checkboxGroupInput(sns("sha_thresholds"), NULL,
+          choices = c(
+            "Level 3 — KES 2,240 / day" = "2240",
+            "Level 4 — KES 3,360 / day" = "3360",
+            "Level 5 — KES 3,920 / day" = "3920",
+            "Level 6 — KES 4,480 / day" = "4480"
+          ),
+          selected = c("2240", "3360", "3920", "4480")
+        )
+      } else {
+        numericInput(sns("vsly_value"), NULL,
+          value = 2000000, min = 1, step = 100000, width = "100%")
+      }
+    })
+
     # ── Accept strategies from Evidence Synthesis ──────────────────────────
     if (!is.null(inject_strategies)) {
       observeEvent(inject_strategies(), {
@@ -163,6 +173,13 @@ mod_input_server <- function(id, inject_strategies = NULL) {
         )
         values$from_synthesis <- TRUE
         inject_count(inject_count() + 1L)
+        # Auto-set outcome_type from synthesis outcome_measure
+        if ("outcome_measure" %in% names(d)) {
+          om <- unique(d$outcome_measure)
+          om <- om[!is.na(om) & om != "mixed"]
+          if (length(om) == 1L && om %in% c("daly", "qaly", "lyg", "lives", "hosp_days"))
+            updateSelectInput(session, "outcome_type", selected = om)
+        }
       }, ignoreNULL = TRUE, ignoreInit = TRUE)
     }
 
@@ -302,8 +319,28 @@ mod_input_server <- function(id, inject_strategies = NULL) {
     list(
       strategies_data = reactive(values$strategies_data),
       parameters = reactive({
-        thr <- if (input$threshold_type == "gdp") 154000 else as.numeric(input$sha_level)
-        ol  <- switch(input$outcome_type,
+        ot <- input$outcome_type %||% "daly"
+
+        thr_vec <- if (ot %in% c("daly", "qaly")) {
+          all_gdp <- c("154000" = "0.5× GDP", "308000" = "1× GDP", "924000" = "3× GDP")
+          sel <- input$gdp_thresholds %||% names(all_gdp)
+          sel <- sel[sel %in% names(all_gdp)]
+          if (length(sel) == 0L) sel <- "154000"
+          setNames(as.numeric(sel), all_gdp[sel])
+        } else if (ot == "hosp_days") {
+          all_sha <- c("2240" = "Level 3", "3360" = "Level 4",
+                       "3920" = "Level 5", "4480" = "Level 6")
+          sel <- input$sha_thresholds %||% names(all_sha)
+          sel <- sel[sel %in% names(all_sha)]
+          if (length(sel) == 0L) sel <- "2240"
+          setNames(as.numeric(sel), all_sha[sel])
+        } else {
+          v <- input$vsly_value %||% 2000000
+          if (!is.finite(v) || v <= 0) v <- 2000000
+          setNames(v, paste0("VSLY — KES ", format(round(v), big.mark = ",")))
+        }
+
+        ol <- switch(ot,
           daly      = "DALY averted",
           qaly      = "QALY gained",
           lyg       = "life year gained",
@@ -311,12 +348,11 @@ mod_input_server <- function(id, inject_strategies = NULL) {
           hosp_days = "day of hospitalisation averted"
         )
         list(
-          outcome_type   = input$outcome_type,
-          outcome_label  = ol,
-          threshold      = thr,
-          threshold_type = input$threshold_type,
-          sha_level      = input$sha_level,
-          psa_enabled    = FALSE
+          outcome_type  = ot,
+          outcome_label = ol,
+          threshold     = min(thr_vec, na.rm = TRUE),
+          thresholds    = thr_vec,
+          psa_enabled   = FALSE
         )
       }),
       analysis_ready = reactive(validation_result()$valid),
