@@ -1,22 +1,46 @@
 # fetch_factors.R
 # Fetches and caches conversion factors for Evidence Synthesis standardisation.
 #
-# Structure of the returned factors object (format_version = "2"):
-#   $ppp       list(rates = named list iso4217c→KES/unit, year = integer)
-#   $fx        list(rates = named list iso4217c→KES/unit, date = Date)
-#   $inflation named list: iso4217c → named numeric vector (year_str → rate fraction)
-#   $iso3c_map named character vector: iso4217c → ISO3C country code
-#   $currencies character vector of all currencies in this cache
-#   $fetched_at POSIXct
-#   $format_version "2"
+# Structure of the returned factors object (format_version = "3"):
+#   $ppp$rates_by_iso3c  named list ISO3C → KES per unit of that country's own
+#                        currency (PPP basis)
+#   $ppp$year            integer PPP reference year
+#   $fx$rates            named list iso4217c → KES/unit (CBK, anchored to FX_ANCHOR_DATE)
+#   $fx$date             Date used for the CBK anchor
+#   $inflation           named list iso4217c → named numeric (year_str → rate);
+#                        one representative country per currency — used by the FX path
+#   $inflation_by_iso3c  named list ISO3C → named numeric (year_str → rate);
+#                        that country's own GDP deflator series — used by the PPP path
+#   $fcrf_by_iso3c       named list ISO3C → named numeric (year_str → LCU per USD);
+#                        used for Step-0 back-conversion when a study's reported
+#                        currency differs from its own country's currency
+#   $iso3c_map           named character vector iso4217c → ISO3C (one representative
+#                        per currency; feeds $inflation, the FX path)
+#   $iso3c_currency_map  named character vector ISO3C → iso4217c (each country's
+#                        own currency; used to resolve a study's country)
+#   $currencies          character vector of all currencies in this cache
+#   $fetched_at          POSIXct
+#   $format_version      "3"
 #
 # Design principles:
-#   - Currencies are looked up dynamically via the countrycode package.
-#     Only three supranational overrides are hardcoded (EUR, XOF, XAF).
+#   - PPP and inflation for the PPP path are resolved per study by COUNTRY
+#     (via $rates_by_iso3c / $inflation_by_iso3c and countrycode), not by
+#     currency — PPP conversion factors reflect domestic price levels, which
+#     genuinely differ between members of a currency union (e.g. Germany vs
+#     Portugal, both EUR).
+#   - If a study's reported currency differs from its own country's currency
+#     (e.g. a Canadian study costed in USD), the cost is first back-converted
+#     to the country's own currency using historical exchange rates
+#     ($fcrf_by_iso3c) before the PPP/inflation steps — see synth_standardize().
+#   - If a study's country can't be resolved, or World Bank has no PPP/FCRF
+#     data for it, the PPP path returns NA (rendered as "—") rather than
+#     substituting a guessed representative country.
+#   - The FX path remains currency-keyed ($fx$rates, $inflation): market
+#     exchange rates don't vary by which member of a currency union you're
+#     in, so a single representative per currency is valid there.
 #   - Inflation is stored as raw year-by-year series so callers can compute
 #     any summary statistic (mean, geometric mean, trimmed mean, etc.)
 #     and exclude anomalous years (e.g. 2020-2021).
-#   - Exchange rates are anchored to FX_ANCHOR_DATE for reproducibility.
 #   - Cache carries a format_version field; mismatches trigger a rebuild.
 
 library(wbstats)
@@ -28,7 +52,7 @@ library(countrycode)
 CACHE_PATH           <- "data/factors_cache.rds"
 FX_ANCHOR_DATE       <- as.Date("2026-04-30")
 TARGET_YEAR          <- 2027L
-FACTORS_FORMAT_VERSION <- "2"
+FACTORS_FORMAT_VERSION <- "3"
 
 # ── Currency → ISO3C overrides ────────────────────────────────────────────────
 # ISO 4217 and ISO 3166 are different standards. Single-country currencies
@@ -37,6 +61,11 @@ FACTORS_FORMAT_VERSION <- "2"
 #   (a) supranational monetary unions, and
 #   (b) reserve currencies adopted by multiple countries/territories where the
 #       first codelist match would return a territory rather than the issuing country.
+#
+# Used only to pick ONE representative ISO3C per currency for the FX path
+# ($iso3c_map, $inflation). The PPP path resolves PPP/inflation per study by
+# the study's own country (via $iso3c_currency_map), so it does not use this
+# table — that is the whole point of the per-country redesign.
 CURRENCY_ISO3C_OVERRIDES <- c(
   EUR = "EMU",   # Eurozone — WB ICP uses EMU as the monetary-union aggregate
   XOF = "SEN",   # West African CFA franc — Senegal as WB ICP representative
@@ -107,45 +136,76 @@ CBK_INVERTED <- c("TZS", "UGX", "RWF", "BIF")
   iso[!is.na(iso)]
 }
 
+# ── Dynamic country/currency lookups ──────────────────────────────────────────
+# Derived at runtime from countrycode::codelist — no hardcoded country lists.
+# These drive the per-country PPP path in synth_standardize(): a study's
+# country is resolved to an ISO3C, and that ISO3C's OWN currency is compared
+# against the study's reported currency (CURRENCY_ISO3C_OVERRIDES is not used
+# here — it exists only for the FX-path representatives above).
+
+# Every ISO3C with both an iso3c and iso4217c entry in countrycode::codelist,
+# plus Kenya. This is the set of countries fetched for $ppp$rates_by_iso3c,
+# $inflation_by_iso3c and $fcrf_by_iso3c.
+.all_iso3c <- function() {
+  cl  <- countrycode::codelist
+  iso <- unique(cl$iso3c[!is.na(cl$iso3c) & !is.na(cl$iso4217c)])
+  unique(c("KEN", iso))
+}
+
+# ISO3C → that country's own ISO 4217 currency code.
+.iso3c_currency_map <- function() {
+  cl <- countrycode::codelist
+  cl <- cl[!is.na(cl$iso3c) & !is.na(cl$iso4217c), c("iso3c", "iso4217c")]
+  cl <- cl[!duplicated(cl$iso3c), ]
+  setNames(cl$iso4217c, cl$iso3c)
+}
+
+# All ISO3C codes whose own currency is `currency` (e.g. "EUR" → every
+# Eurozone member). Used for Step-0 cross-rate lookups in synth_standardize():
+# a currency/USD rate doesn't depend on which member of the union you ask, so
+# any member with FCRF data for the needed year will do.
+.currency_members <- function(currency) {
+  cl <- countrycode::codelist
+  cl <- cl[!is.na(cl$iso3c) & !is.na(cl$iso4217c), c("iso3c", "iso4217c")]
+  unique(cl$iso3c[cl$iso4217c == currency])
+}
+
 # ── World Bank PPP factors ────────────────────────────────────────────────────
-# Returns list(rates = named list iso4217c→KES/unit, year = integer)
-# Uses the most recent ICP year for which Kenya has data as the PPP reference year.
+# Returns list(rates_by_iso3c = named list ISO3C→KES per unit of that
+# country's own currency, year = integer). Uses the most recent ICP year for
+# which Kenya has data as the PPP reference year.
+#
+# Fetched once for every country in `all_iso3c` (i.e. .all_iso3c()) so that
+# synth_standardize() can resolve PPP by the study's own country, rather than
+# by a single representative per currency.
 
-.fetch_wb_ppp <- function(iso3c_map) {
-  # iso3c_map: named character vector iso4217c→iso3c
-  all_iso <- unique(c("KEN", unname(iso3c_map)))
-
+.fetch_wb_ppp <- function(all_iso3c) {
   raw <- wbstats::wb_data(
     indicator   = "PA.NUS.PPP",
-    country     = all_iso,
+    country     = "all",
     start_date  = TARGET_YEAR - 10L,
     end_date    = TARGET_YEAR - 1L,
     return_wide = FALSE
   ) |>
-    filter(!is.na(value))
+    filter(!is.na(value), iso3c %in% all_iso3c)
 
   ke_data <- raw[raw$iso3c == "KEN", ]
   if (nrow(ke_data) == 0L) stop("Kenya PPP factor not available from World Bank.")
   ppp_year <- max(ke_data$date)
   kes_ppp  <- ke_data$value[ke_data$date == ppp_year][1L]
 
-  iso_to_curr <- setNames(names(iso3c_map), iso3c_map)
-
-  result <- list(KES = 1)
-  for (iso in setdiff(all_iso, "KEN")) {
-    curr <- iso_to_curr[iso]
-    if (is.na(curr)) next
+  rates_by_iso3c <- list(KEN = 1)
+  for (iso in setdiff(unique(raw$iso3c), "KEN")) {
     rows  <- raw[raw$iso3c == iso, ]
-    if (nrow(rows) == 0L) next
     # Use the PPP year value if available; otherwise the most recent
     exact <- rows[rows$date == ppp_year, ]
     row   <- if (nrow(exact) > 0L) exact else rows[which.max(rows$date), ]
     cp    <- row$value[1L]
     if (is.na(cp) || !is.finite(cp) || cp == 0) next
-    result[[curr]] <- unname(kes_ppp / cp)
+    rates_by_iso3c[[iso]] <- unname(kes_ppp / cp)
   }
 
-  list(rates = result, year = as.integer(ppp_year))
+  list(rates_by_iso3c = rates_by_iso3c, year = as.integer(ppp_year))
 }
 
 # ── CBK exchange rates ────────────────────────────────────────────────────────
@@ -228,34 +288,61 @@ CBK_INVERTED <- c("TZS", "UGX", "RWF", "BIF")
 }
 
 # ── Non-Kenya inflation: raw annual GDP deflator series from World Bank ───────
-# Returns named list: iso4217c → named numeric vector (year_string → rate fraction)
+# Returns named list: ISO3C → named numeric vector (year_string → rate fraction).
+# Covers every country in `all_iso3c` (feeds $inflation_by_iso3c, the PPP
+# path) plus every representative ISO3C in `iso3c_map` (feeds $inflation, the
+# FX path) — the latter includes supranational aggregates such as "EMU" that
+# are not themselves ISO3C countries but do carry World Bank deflator series.
 
-.fetch_wb_inflation_rates <- function(iso3c_map, start_year = 2010L) {
-  non_ke <- iso3c_map[iso3c_map != "KEN"]
-  if (length(non_ke) == 0L) return(list())
+.fetch_wb_inflation_rates <- function(all_iso3c, iso3c_map, start_year = 2010L) {
+  query_iso3c <- setdiff(unique(c(all_iso3c, unname(iso3c_map))), "KEN")
+  if (length(query_iso3c) == 0L) return(list())
 
-  iso3c_codes <- unique(unname(non_ke))
   raw <- tryCatch(
     wbstats::wb_data(
       indicator   = "NY.GDP.DEFL.KD.ZG",
-      country     = iso3c_codes,
+      country     = "all",
       start_date  = start_year,
       end_date    = TARGET_YEAR - 1L,
       return_wide = FALSE
-    ) |> filter(!is.na(value) & is.finite(value)),
+    ) |> filter(!is.na(value) & is.finite(value), iso3c %in% query_iso3c),
     error = function(e) { warning("WB deflator fetch failed: ", e$message); NULL }
   )
   if (is.null(raw)) return(list())
 
-  iso_to_curr <- setNames(names(non_ke), non_ke)
+  result <- list()
+  for (iso in unique(raw$iso3c)) {
+    rows <- raw[raw$iso3c == iso, ]
+    result[[iso]] <- setNames(rows$value / 100, as.character(rows$date))
+  }
+  result
+}
+
+# ── Historical exchange rates: World Bank official rate (LCU per USD) ────────
+# Returns named list: ISO3C → named numeric vector (year_string → LCU per USD).
+# Used by synth_standardize() for Step-0 back-conversion when a study's
+# reported currency differs from its own country's currency (e.g. a Canadian
+# study costed in USD): the cost is converted via
+# (rate for the country's own currency) / (rate for the study's reported
+# currency) at the study year. USD itself has a constant rate of 1.
+
+.fetch_wb_fcrf <- function(all_iso3c, start_year = 1990L) {
+  raw <- tryCatch(
+    wbstats::wb_data(
+      indicator   = "PA.NUS.FCRF",
+      country     = "all",
+      start_date  = start_year,
+      end_date    = TARGET_YEAR - 1L,
+      return_wide = FALSE
+    ) |> filter(!is.na(value) & is.finite(value), iso3c %in% all_iso3c),
+    error = function(e) { warning("WB FCRF fetch failed: ", e$message); NULL }
+  )
+  if (is.null(raw)) return(list())
 
   result <- list()
-  for (iso in iso3c_codes) {
-    curr <- iso_to_curr[iso]
-    if (is.na(curr)) next
+  for (iso in unique(raw$iso3c)) {
     rows <- raw[raw$iso3c == iso, ]
-    if (nrow(rows) == 0L) next
-    result[[curr]] <- setNames(rows$value / 100, as.character(rows$date))
+    result[[iso]] <- setNames(rows$value, as.character(rows$date))
   }
   result
 }
@@ -277,12 +364,13 @@ CBK_INVERTED <- c("TZS", "UGX", "RWF", "BIF")
 # ── Assemble all factors ──────────────────────────────────────────────────────
 
 .build_factors <- function() {
+  all_iso3c <- .all_iso3c()
   iso3c_map <- .build_full_iso3c_map()
 
-  message("[fetch_factors] Fetching WB PPP factors (all WB countries)...")
-  ppp <- tryCatch(.fetch_wb_ppp(iso3c_map), error = function(e) {
+  message("[fetch_factors] Fetching WB PPP factors (per-country)...")
+  ppp <- tryCatch(.fetch_wb_ppp(all_iso3c), error = function(e) {
     warning("PPP fetch failed: ", e$message)
-    list(rates = list(KES = 1), year = TARGET_YEAR - 5L)
+    list(rates_by_iso3c = list(KEN = 1), year = TARGET_YEAR - 5L)
   })
 
   message("[fetch_factors] Fetching CBK exchange rates for ", format(FX_ANCHOR_DATE), "...")
@@ -297,30 +385,44 @@ CBK_INVERTED <- c("TZS", "UGX", "RWF", "BIF")
     warning("CBK inflation fetch failed: ", e$message); NULL
   })
 
-  message("[fetch_factors] Fetching WB GDP deflator series (all WB countries)...")
-  wb_rates <- tryCatch(.fetch_wb_inflation_rates(iso3c_map), error = function(e) {
+  message("[fetch_factors] Fetching WB GDP deflator series (per-country)...")
+  deflator_by_iso3c <- tryCatch(.fetch_wb_inflation_rates(all_iso3c, iso3c_map), error = function(e) {
     warning("WB deflator fetch failed: ", e$message); list()
   })
 
+  inflation_by_iso3c <- deflator_by_iso3c
+  inflation_by_iso3c[["KEN"]] <- ke_rates %||% c("2023" = 0.065)
+
+  message("[fetch_factors] Fetching WB historical exchange rates (per-country)...")
+  fcrf_by_iso3c <- tryCatch(.fetch_wb_fcrf(all_iso3c), error = function(e) {
+    warning("WB FCRF fetch failed: ", e$message); list()
+  })
+
+  # Currency-keyed inflation, retained for the FX path: market exchange rates
+  # don't have PPP's per-country price-level ambiguity, so one representative
+  # per currency (from iso3c_map) is fine here.
   all_currencies <- names(iso3c_map)
   inflation <- list()
   for (curr in all_currencies) {
-    iso <- iso3c_map[curr]
-    inflation[[curr]] <- if (!is.na(iso) && iso == "KEN") {
+    iso <- iso3c_map[[curr]]
+    inflation[[curr]] <- if (identical(iso, "KEN")) {
       ke_rates %||% c("2023" = 0.065)
     } else {
-      wb_rates[[curr]] %||% c("2023" = 0.05)
+      deflator_by_iso3c[[iso]] %||% c("2023" = 0.05)
     }
   }
 
   list(
-    ppp            = ppp,
-    fx             = fx,
-    inflation      = inflation,
-    iso3c_map      = iso3c_map,
-    currencies     = all_currencies,
-    fetched_at     = Sys.time(),
-    format_version = FACTORS_FORMAT_VERSION
+    ppp                = ppp,
+    fx                 = fx,
+    inflation          = inflation,
+    inflation_by_iso3c = inflation_by_iso3c,
+    fcrf_by_iso3c      = fcrf_by_iso3c,
+    iso3c_map          = iso3c_map,
+    iso3c_currency_map = .iso3c_currency_map(),
+    currencies         = all_currencies,
+    fetched_at         = Sys.time(),
+    format_version     = FACTORS_FORMAT_VERSION
   )
 }
 
@@ -333,14 +435,17 @@ CBK_INVERTED <- c("TZS", "UGX", "RWF", "BIF")
   warning("[fetch_factors] All fetches failed and no cache available. ",
           "Conversion factors unavailable — standardised costs will show as missing.")
   list(
-    ppp            = list(rates = list(KES = 1), year = TARGET_YEAR - 1L),
-    fx             = list(rates = list(KES = 1), date = FX_ANCHOR_DATE),
-    inflation      = list(),
-    iso3c_map      = c(KES = "KEN"),
-    currencies     = "KES",
-    fetched_at     = Sys.time(),
-    format_version = FACTORS_FORMAT_VERSION,
-    is_fallback    = TRUE
+    ppp                = list(rates_by_iso3c = list(KEN = 1), year = TARGET_YEAR - 1L),
+    fx                 = list(rates = list(KES = 1), date = FX_ANCHOR_DATE),
+    inflation          = list(),
+    inflation_by_iso3c = list(),
+    fcrf_by_iso3c      = list(),
+    iso3c_map          = c(KES = "KEN"),
+    iso3c_currency_map = c(KEN = "KES"),
+    currencies         = "KES",
+    fetched_at         = Sys.time(),
+    format_version     = FACTORS_FORMAT_VERSION,
+    is_fallback        = TRUE
   )
 }
 
@@ -352,7 +457,8 @@ CBK_INVERTED <- c("TZS", "UGX", "RWF", "BIF")
 #' @param cache_path    Path to .rds cache file.
 #' @param max_age_days  Days before cache is considered stale. Default Inf (permanent).
 #' @param force_refresh Ignore cache and re-fetch.
-#' @return List with $ppp, $fx, $inflation, $iso3c_map, $currencies, $fetched_at
+#' @return List with $ppp, $fx, $inflation, $inflation_by_iso3c, $fcrf_by_iso3c,
+#'   $iso3c_map, $iso3c_currency_map, $currencies, $fetched_at
 load_factors <- function(cache_path    = CACHE_PATH,
                          max_age_days  = Inf,
                          force_refresh = FALSE) {
