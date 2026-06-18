@@ -18,8 +18,33 @@ source("R/synth_functions.R")
 source("R/gs_backend.R")
 source("R/mod_study_entry.R")
 source("R/mod_synthesis.R")
+source("R/mod_rcema_transform.R")
 source("R/mod_input.R")
 source("R/mod_results.R")
+
+# ── Static assets ─────────────────────────────────────────────────────────────
+
+# Write CSV upload template as a static file so the browser can download it
+# directly (avoids Shiny session-keyed download URL issues).
+local({
+  dir.create("www", showWarnings = FALSE)
+  tpl <- as.data.frame(
+    matrix(NA_character_, nrow = 1L, ncol = length(CSV_TEMPLATE_COLS),
+           dimnames = list(NULL, CSV_TEMPLATE_COLS)),
+    stringsAsFactors = FALSE
+  )
+  tpl$strategy        <- ""
+  tpl$authors         <- "Author et al."
+  tpl$year            <- as.integer(format(Sys.Date(), "%Y"))
+  tpl$source_type     <- "journal"
+  tpl$currency        <- "KES"
+  tpl$outcome_measure <- "daly"
+  tpl$cost            <- 500000
+  tpl$effect          <- 1000
+  tpl$n               <- 500
+  tpl$scenario        <- "base_case"
+  write.csv(tpl, "www/cea_studies_template.csv", row.names = FALSE, na = "")
+})
 
 # ── Startup: auth + shared data ───────────────────────────────────────────────
 
@@ -72,12 +97,23 @@ ui <- navbarPage(
   ),
   footer = mod_results_ui("analysis_results"),
 
+  tabPanel("Transform",
+    mod_rcema_transform_ui("rcema_transform")
+  ),
+
   tabPanel("Evidence Synthesis",
     mod_synthesis_ui("synthesis")
   ),
 
   tabPanel("Analysis",
     mod_input_ui("icer_calculation")
+  ),
+
+  tabPanel("Methods",
+    tags$iframe(
+      src   = "methods.html",
+      style = "width:100%; height: calc(100vh - 52px); border: none; display: block;"
+    )
   ),
 
   tabPanel("Help",
@@ -147,16 +183,37 @@ server <- function(input, output, session) {
 
   open_drawer_trigger <- reactiveVal(0L)
 
+  # RCEMA Transform module — loaded before Synthesis so preset reactive is ready
+  transform_out <- mod_rcema_transform_server("rcema_transform",
+                                              interventions = INTERVENTIONS,
+                                              factors       = FACTORS)
+
+  # When Transform saves studies, switch to Synthesis and preset the dropdown
+  preset_intv <- reactiveVal(NULL)
+
+  observeEvent(transform_out$save_count(), {
+    preset_intv(transform_out$saved_intervention())
+    updateNavbarPage(session, "main_nav", selected = "Evidence Synthesis")
+  }, ignoreInit = TRUE)
+
   # Evidence Synthesis module
   synthesis_out <- mod_synthesis_server("synthesis",
-                                        factors        = FACTORS,
-                                        interventions  = INTERVENTIONS,
-                                        write_enabled  = reactive(GS_WRITE_ENABLED))
+                                        factors             = FACTORS,
+                                        interventions       = INTERVENTIONS,
+                                        write_enabled       = reactive(GS_WRITE_ENABLED),
+                                        preset_intervention = preset_intv)
+
+  # Strategy injection into Analysis — from Synthesis only
+  injected_strategies <- reactiveVal(NULL)
+
+  observeEvent(synthesis_out$send_count(), {
+    injected_strategies(synthesis_out$sent_strategies())
+  }, ignoreInit = TRUE)
 
   # Analysis input module
   input_data <- mod_input_server(
     "icer_calculation",
-    inject_strategies = synthesis_out$sent_strategies
+    inject_strategies = injected_strategies
   )
 
   # ── Analysis run helper ───────────────────────────────────────────────────

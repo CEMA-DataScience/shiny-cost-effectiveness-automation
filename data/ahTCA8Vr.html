@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base href="_w_099d6c7de9294e36a161ce5e95f9158b/">
+    <script type="text/javascript">
+(function() {
+  var workerId = '_w_099d6c7de9294e36a161ce5e95f9158b';
+  // remove base href if worker ID is in url
+  if (window.location.href.indexOf(workerId) > 0) {
+    document.querySelector('base').removeAttribute('href');
+  }
+})();
+</script>
+
+      <script type="text/javascript">
+      var __connect = {
+        shinyPre101: false
+      }
+      </script>
+      
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+  <script type="application/shiny-singletons">add739c82ab207ed2c80be4b7e4b181525eb7a75</script>
+  <script type="application/html-dependencies">jquery[3.7.1];shiny-sass[1.11.1];shiny-busy-indicators[1.11.1];shiny-javascript[1.11.1];bootstrap[4.6.0];bs3compat[0.10.0];font-awesome[6.5.2];selectize[0.15.2];htmltools-fill[0.5.9];htmlwidgets[1.6.4];datatables-css[0.0.0];datatables-binding[0.33];crosstalk[1.2.1];shinycssloaders-binding[1.1.0];plotly-binding[4.11.0]</script>
+<script src="jquery-3.7.1/jquery.min.js"></script>
+<link href="shiny-sass-1.11.1/shiny-sass.css" rel="stylesheet" />
+<link href="shiny-busy-indicators-1.11.1/busy-indicators.css" rel="stylesheet" />
+<script src="shiny-javascript-1.11.1/shiny.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+<link href="bootstrap-4.6.0/bootstrap.min.css" rel="stylesheet" />
+<script src="bootstrap-4.6.0/bootstrap.bundle.min.js"></script>
+<script src="bs3compat-0.10.0/transition.js"></script>
+<script src="bs3compat-0.10.0/tabs.js"></script>
+<script src="bs3compat-0.10.0/bs3compat.js"></script>
+<link href="font-awesome-6.5.2/css/all.min.css" rel="stylesheet" />
+<link href="font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet" />
+<link href="selectize-0.15.2/selectize.css" rel="stylesheet" />
+<script src="selectize-0.15.2/selectize.min.js"></script>
+<script src="selectize-0.15.2/selectize-plugin-a11y.min.js"></script>
+<link href="htmltools-fill-0.5.9/fill.css" rel="stylesheet" />
+<script src="htmlwidgets-1.6.4/htmlwidgets.js"></script>
+<link href="datatables-css-0.0.0/datatables-crosstalk.css" rel="stylesheet" />
+<script src="datatables-binding-0.33/datatables.js"></script>
+<link href="crosstalk-1.2.1/css/crosstalk.min.css" rel="stylesheet" />
+<script src="crosstalk-1.2.1/js/crosstalk.min.js"></script>
+<link href="shinycssloaders-binding-1.1.0/spinner.css" rel="stylesheet" />
+<script src="shinycssloaders-binding-1.1.0/spinner.js"></script>
+<script src="plotly-binding-4.11.0/plotly.js"></script>  <title>Cost-Effectiveness Analysis</title>
+  <style>.shinyjs-hide { display: none !important; }</style>
+  <script>Shiny.addCustomMessageHandler('shinyjs-show', function(params) { shinyjs.debugMessage('shinyjs: calling function "show" with parameters:'); shinyjs.debugMessage(params); shinyjs.show(params);});
+Shiny.addCustomMessageHandler('shinyjs-hide', function(params) { shinyjs.debugMessage('shinyjs: calling function "hide" with parameters:'); shinyjs.debugMessage(params); shinyjs.hide(params);});
+Shiny.addCustomMessageHandler('shinyjs-toggle', function(params) { shinyjs.debugMessage('shinyjs: calling function "toggle" with parameters:'); shinyjs.debugMessage(params); shinyjs.toggle(params);});
+Shiny.addCustomMessageHandler('shinyjs-enable', function(params) { shinyjs.debugMessage('shinyjs: calling function "enable" with parameters:'); shinyjs.debugMessage(params); shinyjs.enable(params);});
+Shiny.addCustomMessageHandler('shinyjs-disable', function(params) { shinyjs.debugMessage('shinyjs: calling function "disable" with parameters:'); shinyjs.debugMessage(params); shinyjs.disable(params);});
+Shiny.addCustomMessageHandler('shinyjs-toggleState', function(params) { shinyjs.debugMessage('shinyjs: calling function "toggleState" with parameters:'); shinyjs.debugMessage(params); shinyjs.toggleState(params);});
+Shiny.addCustomMessageHandler('shinyjs-addClass', function(params) { shinyjs.debugMessage('shinyjs: calling function "addClass" with parameters:'); shinyjs.debugMessage(params); shinyjs.addClass(params);});
+Shiny.addCustomMessageHandler('shinyjs-removeClass', function(params) { shinyjs.debugMessage('shinyjs: calling function "removeClass" with parameters:'); shinyjs.debugMessage(params); shinyjs.removeClass(params);});
+Shiny.addCustomMessageHandler('shinyjs-toggleClass', function(params) { shinyjs.debugMessage('shinyjs: calling function "toggleClass" with parameters:'); shinyjs.debugMessage(params); shinyjs.toggleClass(params);});
+Shiny.addCustomMessageHandler('shinyjs-html', function(params) { shinyjs.debugMessage('shinyjs: calling function "html" with parameters:'); shinyjs.debugMessage(params); shinyjs.html(params);});
+Shiny.addCustomMessageHandler('shinyjs-onevent', function(params) { shinyjs.debugMessage('shinyjs: calling function "onevent" with parameters:'); shinyjs.debugMessage(params); shinyjs.onevent(params);});
+Shiny.addCustomMessageHandler('shinyjs-removeEvent', function(params) { shinyjs.debugMessage('shinyjs: calling function "removeEvent" with parameters:'); shinyjs.debugMessage(params); shinyjs.removeEvent(params);});
+Shiny.addCustomMessageHandler('shinyjs-alert', function(params) { shinyjs.debugMessage('shinyjs: calling function "alert" with parameters:'); shinyjs.debugMessage(params); shinyjs.alert(params);});
+Shiny.addCustomMessageHandler('shinyjs-logjs', function(params) { shinyjs.debugMessage('shinyjs: calling function "logjs" with parameters:'); shinyjs.debugMessage(params); shinyjs.logjs(params);});
+Shiny.addCustomMessageHandler('shinyjs-runjs', function(params) { shinyjs.debugMessage('shinyjs: calling function "runjs" with parameters:'); shinyjs.debugMessage(params); shinyjs.runjs(params);});
+Shiny.addCustomMessageHandler('shinyjs-reset', function(params) { shinyjs.debugMessage('shinyjs: calling function "reset" with parameters:'); shinyjs.debugMessage(params); shinyjs.reset(params);});
+Shiny.addCustomMessageHandler('shinyjs-delay', function(params) { shinyjs.debugMessage('shinyjs: calling function "delay" with parameters:'); shinyjs.debugMessage(params); shinyjs.delay(params);});
+Shiny.addCustomMessageHandler('shinyjs-click', function(params) { shinyjs.debugMessage('shinyjs: calling function "click" with parameters:'); shinyjs.debugMessage(params); shinyjs.click(params);});
+Shiny.addCustomMessageHandler('shinyjs-refresh', function(params) { shinyjs.debugMessage('shinyjs: calling function "refresh" with parameters:'); shinyjs.debugMessage(params); shinyjs.refresh(params);});</script>
+  <script src="shinyjs/shinyjs-default-funcs.js"></script>
+  <script>shinyjs.debug = false;</script>
+  <link rel="stylesheet" href="styles.css"/>
+  <style>
+      .synth-wrap { max-width: 1480px; margin: 0 auto; padding: 24px; }
+
+      /* Intervention selector bar */
+      .synth-intv-bar {
+        display: flex; align-items: center; gap: 16px;
+        margin-bottom: 20px;
+      }
+      .synth-intv-bar .form-group { margin: 0; flex: 1; }
+      .synth-intv-bar .form-group label { display: none; }
+
+      .synth-card { border: 1px solid #e5e5e5; border-radius: 4px; }
+      .synth-card-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 11px 15px; border-bottom: 1px solid #e5e5e5;
+        font-size: 13px; font-weight: 600;
+        background: #fff; border-radius: 4px 4px 0 0;
+      }
+      .synth-card-actions { display: flex; align-items: center; gap: 8px; }
+      .synth-pool-ctrl { display: flex; align-items: center; gap: 8px; }
+      .synth-pool-ctrl .shiny-input-container { margin: 0; }
+      .synth-pool-ctrl .shiny-input-container > label { display: none; }
+      .synth-pool-ctrl .radio-inline label {
+        font-size: 12px; font-weight: 500; color: #404040; cursor: pointer;
+      }
+      .synth-pool-lbl { font-size: 12px; color: #737373; white-space: nowrap; }
+
+      .synth-table { border-collapse: collapse; width: 100%; font-size: 13px; }
+      .synth-th th {
+        font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em;
+        color: #737373; font-weight: 600; padding: 8px 12px;
+        border-bottom: 1.5px solid #0a0a0a; white-space: nowrap; background: #fff;
+      }
+      .synth-r { text-align: right !important; }
+      .synth-chk {
+        width: 28px !important; max-width: 28px !important;
+        text-align: center !important; padding: 0 4px !important;
+        vertical-align: middle !important;
+      }
+      .synth-chk .form-group         { margin-bottom: 0 !important; }
+      .synth-chk .shiny-input-container { width: auto !important; }
+      .synth-chk .checkbox           { margin: 0 !important; padding: 0 !important; }
+      .synth-chk .checkbox label     { padding-left: 0 !important; min-height: 0 !important; }
+      .synth-chk .shiny-input-container > label { display: none; }
+      .synth-chk input[type='checkbox'] { margin: 0 !important; cursor: pointer; }
+      .synth-excluded td { opacity: 0.35; }
+
+      .synth-grp td {
+        background: #fafafa; font-size: 11px; font-weight: 700;
+        text-transform: uppercase; letter-spacing: 0.05em;
+        color: #404040; padding: 6px 12px; border-top: 1px solid #e5e5e5;
+      }
+      .synth-study td {
+        padding: 8px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: top;
+      }
+      .synth-author  { font-weight: 500; }
+      .synth-journal { font-size: 11px; color: #737373; }
+      .synth-step    { background: #fcfcfc; }
+      .synth-kes     { font-weight: 600; }
+      .synth-scenario {
+        display: inline-block; background: #f0f9ff; color: #0369a1;
+        font-size: 10px; font-weight: 600; padding: 1px 5px; border-radius: 2px;
+        text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px;
+      }
+      .synth-scenario.base { background: #dcfce7; color: #15803d; }
+
+      .synth-pool-row td {
+        padding: 9px 12px; border-top: 1.5px solid #27AAE1;
+        border-bottom: 2px solid #e5e5e5; background: #f0f9ff;
+      }
+      .synth-pool-none td {
+        padding: 9px 12px; border-top: 1px solid #e5e5e5;
+        background: #fafafa; color: #a3a3a3; font-size: 12px; font-style: italic;
+      }
+      .synth-pool-lbl-cell { font-weight: 600; font-size: 13px; }
+      .synth-range { font-size: 11px; color: #737373; }
+      .synth-icer-flag {
+        display: inline-block; background: #fffbeb; color: #b45309;
+        border: 1px solid #fde68a; border-radius: 2px;
+        padding: 1px 6px; font-size: 11px; margin-left: 6px;
+      }
+      .synth-empty {
+        padding: 48px 24px; text-align: center; color: #737373;
+        font-size: 13px;
+      }
+      .synth-empty-title { font-size: 15px; font-weight: 600; color: #404040; margin-bottom: 6px; }
+
+      .synth-demo-banner {
+        display: flex; align-items: center; gap: 10px;
+        background: #fffbeb; border: 1px solid #fde68a;
+        border-radius: 4px; padding: 8px 14px; margin-bottom: 12px;
+        font-size: 12px; color: #92400e;
+      }
+      .synth-demo-banner strong { font-weight: 700; }
+      .synth-scenario.demo { background: #fef3c7; color: #92400e; }
+
+      .synth-footer {
+        display: flex; align-items: center;
+        justify-content: flex-end; margin-top: 16px; gap: 12px;
+      }
+      .btn-synth-send {
+        background: #27AAE1 !important; color: #fff !important;
+        border: none !important; border-radius: 4px !important;
+        padding: 10px 20px !important; font-size: 13px !important;
+        font-weight: 600 !important; white-space: nowrap;
+      }
+      .btn-synth-send:hover, .btn-synth-send:focus {
+        background: #1c8ec0 !important; color: #fff !important;
+      }
+      .btn-synth-send:disabled {
+        background: #d4d4d4 !important; cursor: not-allowed !important;
+      }
+    </style>
+  <style>
+      .anl-wrap { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+      .anl-pg-hdr {
+        padding: 20px 0 16px; border-bottom: 1px solid #e5e5e5; margin-bottom: 20px;
+      }
+      .anl-pg-hdr h1 { font-size: 22px; font-weight: 700; margin: 0 0 4px; }
+      .anl-pg-hdr p  { font-size: 14px; color: #737373; margin: 0; }
+
+      .anl-card-hdr {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 11px 15px; border-bottom: 1px solid #e5e5e5;
+        background: #fff; border-radius: 4px 4px 0 0;
+      }
+      .anl-card-hdr-lbl {
+        font-size: 11px; font-weight: 700; color: #737373;
+        text-transform: uppercase; letter-spacing: 0.05em;
+      }
+      .anl-tbl-acts { display: flex; gap: 6px; align-items: center; }
+
+      .anl-src-lit { display: inline-block; background: #dff3fb; color: #1c8ec0;
+        font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 2px; }
+      .anl-src-mod { display: inline-block; background: #fef9c3; color: #b45309;
+        font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 2px; }
+      .anl-src-man { display: inline-block; background: #f5f5f4; color: #737373;
+        font-size: 11px; font-weight: 500; padding: 1px 6px; border-radius: 2px;
+        border: 1px solid #e5e5e5; }
+
+      .anl-fld-lbl {
+        font-size: 11px; font-weight: 700; color: #737373;
+        text-transform: uppercase; letter-spacing: 0.05em;
+        margin: 12px 0 4px; display: block;
+      }
+      .anl-fld-lbl:first-child { margin-top: 0; }
+
+      .anl-run-btn {
+        width: 100% !important; padding: 10px !important;
+        font-size: 14px !important; font-weight: 600 !important;
+      }
+    </style>
+  <style>
+      /* Widen drawer to match design */
+      .results-drawer { width: min(940px, 88vw) !important; }
+
+      /* Price threshold stat grid */
+      .pt-grid {
+        display: grid; grid-template-columns: repeat(4, 1fr);
+        gap: 12px; margin-top: 16px;
+      }
+      .pt-stat {
+        border: 1px solid #e5e5e5; border-radius: 4px;
+        padding: 13px; text-align: center;
+      }
+      .pt-val {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 18px; font-weight: 600;
+      }
+      .pt-lbl {
+        font-size: 10px; color: #737373; margin-top: 4px;
+        text-transform: uppercase; letter-spacing: 0.05em;
+      }
+      .pt-chart-wrap { height: 320px; }
+
+      /* Interpretation block */
+      .interp-block {
+        border: 1px solid #e5e5e5; border-radius: 4px;
+        padding: 15px; font-size: 13px; line-height: 1.75;
+        margin-top: 16px;
+      }
+      .interp-block.ok   { border-left: 3px solid #047857; }
+      .interp-block.warn { border-left: 3px solid #FE7501; }
+    </style>
+  <style>#spinner-6f11e822a7e9ec585dda1f67c996b1f3 {   color: #27AAE1; } #spinner-6f11e822a7e9ec585dda1f67c996b1f3 { font-size: 9px; }</style>
+  <style>#spinner-33755b1bc6b5d7bd9aedd0c9b6b1b399 {   color: #27AAE1; } #spinner-33755b1bc6b5d7bd9aedd0c9b6b1b399 { font-size: 9px; }</style>
+  <style>#spinner-1e6c9f8ad5298edb47153385c678dedd {   color: #27AAE1; } #spinner-1e6c9f8ad5298edb47153385c678dedd { font-size: 9px; }</style>
+  <style>#spinner-645ff5eab2d6e86d7063fb04a8b79e55 {   color: #27AAE1; } #spinner-645ff5eab2d6e86d7063fb04a8b79e55 { font-size: 9px; }</style>
+  <style>#spinner-a5428ccace166204a4c88354f16529e8 {   color: #27AAE1; } #spinner-a5428ccace166204a4c88354f16529e8 { font-size: 9px; }</style>
+<script src="__assets__/sockjs.min.js"></script>
+<script src="__assets__/shiny-server-client.min.js"></script>
+<script>preShinyInit({reconnect:true,reconnectTimeout:15000,disableProtocols:["htmlfile","xdr-streaming","xdr-polling","websocket"],token:true,workerId:true,subappTag:true,extendSession:true,fixupInternalLinks:true});</script>
+<link rel="stylesheet" type="text/css" href="__assets__/rstudio-connect.css"/>
+</head>
+<body>
+<script type="text/javascript" src="/__static__/components/iframe-resizer/js/iframeResizer.contentWindow.min.js"></script>
+<script type="text/javascript" src="/__static__/frontend/scripts/shinyapps.frame.content.js"></script>
+<script type="text/javascript" src="/__static__/frontend/scripts/shinyapps.js"></script>
+  <body class="bslib-page-navbar">
+    <nav class="navbar navbar-default navbar-static-top" role="navigation" data-bs-theme="light">
+      <div class="container-fluid">
+        <div class="navbar-header">
+          <span class="navbar-brand">Cost-Effectiveness Analysis</span>
+        </div>
+        <ul class="nav navbar-nav nav-underline shiny-tab-input" id="main_nav" data-tabsetid="2709">
+          <li class="nav-item">
+            <a href="#tab-2709-1" data-toggle="tab" data-bs-toggle="tab" data-value="Evidence Synthesis" class="nav-link active">Evidence Synthesis</a>
+          </li>
+          <li class="nav-item">
+            <a href="#tab-2709-2" data-toggle="tab" data-bs-toggle="tab" data-value="Analysis" class="nav-link">Analysis</a>
+          </li>
+          <li class="nav-item">
+            <a href="#tab-2709-3" data-toggle="tab" data-bs-toggle="tab" data-value="Help" class="nav-link">Help</a>
+          </li>
+        </ul>
+      </div>
+    </nav>
+    <div class="container-fluid">
+      <div class="row"></div>
+      <div class="tab-content" data-tabsetid="2709">
+        <div class="tab-pane active" data-value="Evidence Synthesis" id="tab-2709-1">
+          <span style="display:none;">
+            <a id="synthesis-entry-csv_template_dl" class="btn btn-default shiny-download-link disabled" href="" target="_blank" download aria-disabled="true" tabindex="-1">
+              <i class="fas fa-download" role="presentation" aria-label="download icon"></i>
+              
+            </a>
+          </span>
+          <div class="synth-wrap">
+            <div class="synth-intv-bar">
+              <div class="form-group shiny-input-container" style="width:100%;">
+                <label class="control-label shiny-label-null" for="synthesis-selected_intervention" id="synthesis-selected_intervention-label"></label>
+                <div>
+                  <select id="synthesis-selected_intervention" class="shiny-input-select"><option value="" selected>Select an intervention…</option></select>
+                  <script type="application/json" data-for="synthesis-selected_intervention">{"plugins":["selectize-plugin-a11y"]}</script>
+                </div>
+              </div>
+            </div>
+            <div class="card synth-card">
+              <div class="synth-card-header">
+                <span>Study cost database — standardisation &amp; pooling</span>
+                <div class="synth-card-actions">
+                  <div class="synth-pool-ctrl">
+                    <span class="synth-pool-lbl">Pooling:</span>
+                    <div id="synthesis-pool_method" class="form-group shiny-input-radiogroup shiny-input-container shiny-input-container-inline" role="radiogroup" aria-labelledby="synthesis-pool_method-label">
+                      <label class="control-label shiny-label-null" for="synthesis-pool_method" id="synthesis-pool_method-label"></label>
+                      <div class="shiny-options-group">
+                        <label class="radio-inline">
+                          <input type="radio" name="synthesis-pool_method" value="mean"/>
+                          <span>Simple mean</span>
+                        </label>
+                        <label class="radio-inline">
+                          <input type="radio" name="synthesis-pool_method" value="weighted" checked="checked"/>
+                          <span>Sample-weighted</span>
+                        </label>
+                        <label class="radio-inline">
+                          <input type="radio" name="synthesis-pool_method" value="ivw"/>
+                          <span>Inverse-variance</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  <button class="btn btn-default action-button btn btn-sm btn-outline-secondary" id="synthesis-add_study_btn" type="button">+ Add study</button>
+                  <button class="btn btn-default action-button btn btn-sm btn-outline-secondary" id="synthesis-upload_csv_btn" type="button">↑ Upload CSV</button>
+                </div>
+              </div>
+              <div id="synthesis-study_table" class="shiny-html-output"></div>
+            </div>
+            <div class="synth-footer">
+              <button class="btn btn-default action-button btn btn-synth-send" id="synthesis-send_btn" type="button">
+                <span id="synthesis-send_label" class="shiny-html-output"></span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="tab-pane" data-value="Analysis" id="tab-2709-2">
+          <div class="anl-wrap">
+            <div class="anl-pg-hdr">
+              <h1>Cost-Effectiveness Analysis</h1>
+              <p>Review strategies from Evidence Synthesis, set parameters, then run analysis.</p>
+            </div>
+            <div class="row">
+              <div class="col-sm-8">
+                <div class="card">
+                  <div class="anl-card-hdr">
+                    <span class="anl-card-hdr-lbl">Strategies</span>
+                    <div class="anl-tbl-acts">
+                      <button class="btn btn-default action-button btn btn-sm btn-outline-secondary" id="icer_calculation-add_row" type="button">Add row</button>
+                      <button class="btn btn-default action-button btn btn-sm btn-outline-secondary" id="icer_calculation-remove_row" type="button">Remove last</button>
+                      <span id="icer_calculation-load_sample_btn" class="shiny-html-output"></span>
+                    </div>
+                  </div>
+                  <div class="card-body p-0">
+                    <div class="datatables html-widget html-widget-output shiny-report-size html-fill-item" id="icer_calculation-strategies_table" style="width:100%;height:auto;"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-sm-4">
+                <div class="card">
+                  <div class="anl-card-hdr">
+                    <span class="anl-card-hdr-lbl">Parameters</span>
+                  </div>
+                  <div class="card-body">
+                    <label class="anl-fld-lbl">Effect measure</label>
+                    <div class="form-group shiny-input-container" style="width:100%;">
+                      <label class="control-label shiny-label-null" for="icer_calculation-outcome_type" id="icer_calculation-outcome_type-label"></label>
+                      <div>
+                        <select id="icer_calculation-outcome_type" class="shiny-input-select"><option value="daly" selected>DALYs averted</option>
+<option value="qaly">QALYs gained</option>
+<option value="lyg">Life years gained</option>
+<option value="lives">Lives saved</option>
+<option value="hosp_days">Days of hospitalisation averted</option></select>
+                        <script type="application/json" data-for="icer_calculation-outcome_type" data-nonempty="">{"plugins":["selectize-plugin-a11y"]}</script>
+                      </div>
+                    </div>
+                    <label class="anl-fld-lbl">Cost-effectiveness threshold</label>
+                    <div id="icer_calculation-threshold_type" class="form-group shiny-input-radiogroup shiny-input-container" role="radiogroup" aria-labelledby="icer_calculation-threshold_type-label">
+                      <label class="control-label shiny-label-null" for="icer_calculation-threshold_type" id="icer_calculation-threshold_type-label"></label>
+                      <div class="shiny-options-group">
+                        <div class="radio">
+                          <label>
+                            <input type="radio" name="icer_calculation-threshold_type" value="gdp" checked="checked"/>
+                            <span>0.5× GDP — KES 154,000 per DALY</span>
+                          </label>
+                        </div>
+                        <div class="radio">
+                          <label>
+                            <input type="radio" name="icer_calculation-threshold_type" value="sha"/>
+                            <span>SHA hospital rates</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="shiny-panel-conditional" data-display-if="input[&#39;icer_calculation-threshold_type&#39;] == &#39;sha&#39;" data-ns-prefix="">
+                      <div class="form-group shiny-input-container" style="width:100%;">
+                        <label class="control-label shiny-label-null" for="icer_calculation-sha_level" id="icer_calculation-sha_level-label"></label>
+                        <div>
+                          <select id="icer_calculation-sha_level" class="shiny-input-select"><option value="2240">Level 3 — KES 2,240 / day</option>
+<option value="3360" selected>Level 4 — KES 3,360 / day</option>
+<option value="3920">Level 5 — KES 3,920 / day</option>
+<option value="4480">Level 6 — KES 4,480 / day</option></select>
+                          <script type="application/json" data-for="icer_calculation-sha_level" data-nonempty="">{"plugins":["selectize-plugin-a11y"]}</script>
+                        </div>
+                      </div>
+                    </div>
+                    <hr/>
+                    <div id="icer_calculation-validation_msg" class="shiny-html-output"></div>
+                    <button class="btn btn-default action-button btn btn-primary anl-run-btn" id="icer_calculation-run_analysis" type="button">Run Analysis</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="tab-pane" data-value="Help" id="tab-2709-3">
+          <div class="container-fluid" style="margin-top:20px;">
+            <div class="row">
+              <div class="col-sm-6">
+                <div class="card">
+                  <div class="card-header">Getting Started</div>
+                  <div class="card-body">
+                    <h5>1. Evidence Synthesis</h5>
+                    <p>Review published study costs standardised to KES 2027, then click
+                      Send to Analysis. The analysis runs automatically and results open
+                      in the side drawer.</p>
+                    <h5>2. Analysis</h5>
+                    <p>Set the effect measure and threshold. Re-run any time after
+                      editing strategy data.</p>
+                    <hr/>
+                    <h5>Cost-Effectiveness Thresholds (Kenya)</h5>
+                    <ul>
+                      <li>0.5× GDP per capita: KES 154,000 per DALY/QALY</li>
+                      <li>SHA Level 3–6: KES 2,240 – 4,480 per day averted</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+              <div class="col-sm-6">
+                <div class="card">
+                  <div class="card-header">Understanding Results</div>
+                  <div class="card-body">
+                    <h5>ICER Table</h5>
+                    <p>Incremental cost per additional unit of health outcome versus the reference.</p>
+                    <h5>Price Threshold Analysis</h5>
+                    <p>Shows the maximum cost at which each strategy would be cost-effective at
+                      the chosen threshold (break-even price), how much headroom exists, and the
+                      ICER curve as a function of price.</p>
+                    <h5>PPP vs Exchange Rate</h5>
+                    <p>PPP-adjusted costs (from Synthesis) reflect purchasing power;
+                      exchange-rate costs reflect market conversion.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <br/>
+            <div class="row">
+              <div class="col-sm-12">
+                <div class="card">
+                  <div class="card-header">Sample Data</div>
+                  <div class="card-body">
+                    <div class="datatables html-widget html-widget-output shiny-report-size html-fill-item" id="sample_table" style="width:100%;height:auto;"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div id="analysis_results-drawer_overlay" class="drawer-overlay" onclick="Shiny.setInputValue(&#39;analysis_results-overlay_click&#39;, Math.random())"></div>
+        <div id="analysis_results-results_drawer" class="results-drawer">
+          <div class="drawer-header">
+            <h4 style="margin:0; font-size:15px;">Analysis Results</h4>
+            <button id="analysis_results-close_btn" class="drawer-close" type="button" onclick="Shiny.setInputValue(&#39;analysis_results-close_btn&#39;, Math.random())">&times;</button>
+          </div>
+          <div class="drawer-body">
+            <div class="tabbable">
+              <ul class="nav nav-pills shiny-tab-input" id="analysis_results-tabs" data-tabsetid="1127">
+                <li class="nav-item">
+                  <a href="#tab-1127-1" data-toggle="tab" data-bs-toggle="tab" data-value="ICER Table" class="nav-link active">ICER Table</a>
+                </li>
+                <li class="nav-item">
+                  <a href="#tab-1127-2" data-toggle="tab" data-bs-toggle="tab" data-value="CE Plane" class="nav-link">CE Plane</a>
+                </li>
+                <li class="nav-item">
+                  <a href="#tab-1127-3" data-toggle="tab" data-bs-toggle="tab" data-value="Tornado" class="nav-link">Tornado</a>
+                </li>
+                <li class="nav-item">
+                  <a href="#tab-1127-4" data-toggle="tab" data-bs-toggle="tab" data-value="CEAC" class="nav-link">CEAC</a>
+                </li>
+                <li class="nav-item">
+                  <a href="#tab-1127-5" data-toggle="tab" data-bs-toggle="tab" data-value="Price Threshold" class="nav-link">Price Threshold</a>
+                </li>
+              </ul>
+              <div class="tab-content" data-tabsetid="1127">
+                <div class="tab-pane active" data-value="ICER Table" id="tab-1127-1">
+                  <div class="drawer-tab-body">
+                    <div class="card mb-3">
+                      <div class="card-header">ICER Results</div>
+                      <div class="card-body p-0">
+                        <div data-spinner-id="spinner-6f11e822a7e9ec585dda1f67c996b1f3" class="shiny-spinner-output-container shiny-spinner-hideui">
+                          <div class="load-container shiny-spinner-hidden load4">
+                            <div id="spinner-6f11e822a7e9ec585dda1f67c996b1f3" class="loader">Loading...</div>
+                          </div>
+                          <div style="height:400px" class="shiny-spinner-placeholder"></div>
+                          <div class="datatables html-widget html-widget-output shiny-report-size html-fill-item" id="analysis_results-icer_dt" style="width:100%;height:auto;"></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div id="analysis_results-interpretation" class="shiny-html-output"></div>
+                  </div>
+                </div>
+                <div class="tab-pane" data-value="CE Plane" id="tab-1127-2">
+                  <div class="drawer-tab-body">
+                    <div data-spinner-id="spinner-33755b1bc6b5d7bd9aedd0c9b6b1b399" class="shiny-spinner-output-container shiny-spinner-hideui">
+                      <div class="load-container shiny-spinner-hidden load4">
+                        <div id="spinner-33755b1bc6b5d7bd9aedd0c9b6b1b399" class="loader">Loading...</div>
+                      </div>
+                      <div class="plotly html-widget html-widget-output shiny-report-size shiny-report-theme html-fill-item" id="analysis_results-ce_plane_plot" style="width:100%;height:320px;"></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="tab-pane" data-value="Tornado" id="tab-1127-3">
+                  <div class="drawer-tab-body">
+                    <div data-spinner-id="spinner-1e6c9f8ad5298edb47153385c678dedd" class="shiny-spinner-output-container shiny-spinner-hideui">
+                      <div class="load-container shiny-spinner-hidden load4">
+                        <div id="spinner-1e6c9f8ad5298edb47153385c678dedd" class="loader">Loading...</div>
+                      </div>
+                      <div class="plotly html-widget html-widget-output shiny-report-size shiny-report-theme html-fill-item" id="analysis_results-tornado_plot" style="width:100%;height:380px;"></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="tab-pane" data-value="CEAC" id="tab-1127-4">
+                  <div class="drawer-tab-body">
+                    <div data-spinner-id="spinner-645ff5eab2d6e86d7063fb04a8b79e55" class="shiny-spinner-output-container shiny-spinner-hideui">
+                      <div class="load-container shiny-spinner-hidden load4">
+                        <div id="spinner-645ff5eab2d6e86d7063fb04a8b79e55" class="loader">Loading...</div>
+                      </div>
+                      <div class="plotly html-widget html-widget-output shiny-report-size shiny-report-theme html-fill-item" id="analysis_results-ceac_plot" style="width:100%;height:320px;"></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="tab-pane" data-value="Price Threshold" id="tab-1127-5">
+                  <div class="drawer-tab-body">
+                    <div class="card">
+                      <div class="card-header">
+                        <span>Price Threshold Analysis</span>
+                        <span id="analysis_results-pt_subtitle" class="shiny-html-output"></span>
+                      </div>
+                      <div class="card-body">
+                        <div class="pt-chart-wrap">
+                          <div data-spinner-id="spinner-a5428ccace166204a4c88354f16529e8" class="shiny-spinner-output-container shiny-spinner-hideui">
+                            <div class="load-container shiny-spinner-hidden load4">
+                              <div id="spinner-a5428ccace166204a4c88354f16529e8" class="loader">Loading...</div>
+                            </div>
+                            <div class="plotly html-widget html-widget-output shiny-report-size shiny-report-theme html-fill-item" id="analysis_results-pt_chart" style="width:100%;height:300px;"></div>
+                          </div>
+                        </div>
+                        <div id="analysis_results-pt_stats" class="shiny-html-output"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</body>
+</html>

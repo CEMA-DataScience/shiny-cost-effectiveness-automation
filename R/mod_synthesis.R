@@ -9,8 +9,6 @@ mod_synthesis_ui <- function(id) {
   ns <- NS(id)
 
   tagList(
-    mod_study_entry_ui(ns("entry")),   # hidden download button anchor
-
     tags$head(tags$style(HTML("
       .synth-wrap { max-width: 1480px; margin: 0 auto; padding: 24px; }
 
@@ -171,7 +169,8 @@ mod_synthesis_ui <- function(id) {
 # ── Server ─────────────────────────────────────────────────────────────────────
 
 mod_synthesis_server <- function(id, factors, interventions,
-                                 write_enabled = reactive(TRUE)) {
+                                 write_enabled       = reactive(TRUE),
+                                 preset_intervention = reactive(NULL)) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -182,19 +181,35 @@ mod_synthesis_server <- function(id, factors, interventions,
       included        = NULL    # named logical: record_id → TRUE/FALSE
     )
 
+    DEMO_SEPARATORS <- c("──demo──", "──sha──")
+
     # ── Populate intervention dropdown ──────────────────────────────────────
     observe({
       req(nrow(interventions) > 0L)
-      choices <- c("Select an intervention…" = "",
-                   setNames(interventions$intervention, interventions$intervention))
+      sha <- setNames(interventions$intervention, interventions$intervention)
+      choices <- c(
+        "Select an intervention…"  = "",
+        "── Demo examples ──"      = "──demo──",
+        "Arthroplasty [Demo]"      = "Arthroplasty [Demo]",
+        "Caffeine citrate [Demo]"  = "Caffeine citrate [Demo]",
+        "── SHA interventions ──"  = "──sha──",
+        sha
+      )
       updateSelectInput(session, "selected_intervention", choices = choices)
     })
 
+    # ── Preset from RCEMA Transform ─────────────────────────────────────────
+    observeEvent(preset_intervention(), {
+      intv <- preset_intervention()
+      req(!is.null(intv), nzchar(intv))
+      updateSelectInput(session, "selected_intervention", selected = intv)
+    }, ignoreNULL = TRUE, ignoreInit = TRUE)
+
     # ── Study entry sub-module ──────────────────────────────────────────────
     selected_pkg <- reactive({
-      req(input$selected_intervention, nzchar(input$selected_intervention))
-      hit <- interventions$benefit_package[
-        interventions$intervention == input$selected_intervention]
+      intv <- input$selected_intervention
+      req(nzchar(intv), !intv %in% DEMO_SEPARATORS)
+      hit <- interventions$benefit_package[interventions$intervention == intv]
       if (length(hit) > 0L) hit[1L] else ""
     })
 
@@ -211,8 +226,10 @@ mod_synthesis_server <- function(id, factors, interventions,
     # ── Load studies from GS whenever intervention changes or study added ───
     studies_raw <- reactive({
       intv <- input$selected_intervention
-      req(nzchar(intv))
+      req(nzchar(intv), !intv %in% DEMO_SEPARATORS)
       entry_out$entries_added()
+      if (intv == "Arthroplasty [Demo]")     return(gs_load_demo_arthroplasty())
+      if (intv == "Caffeine citrate [Demo]") return(gs_load_demo_caffeine())
       d <- gs_read_studies(intv)
       if (nrow(d) == 0L) gs_load_demo_studies(intv) else d
     })
@@ -326,13 +343,19 @@ mod_synthesis_server <- function(id, factors, interventions,
       ppp_yr    <- factors$ppp$year
       is_demo   <- all(grepl("^DEMO-", d$record_id))
 
+      is_named_demo <- intv %in% c("Arthroplasty [Demo]", "Caffeine citrate [Demo]")
       demo_banner <- if (is_demo) {
         div(class = "synth-demo-banner",
           tags$span("⚠️"),
           tags$span(
-            tags$strong("Sample data — arthroplasty CEA demonstration. "),
-            "Upload studies for ", tags$em(intv),
-            " to replace this with real evidence."
+            if (is_named_demo)
+              tags$strong(paste0("Demo data — ", intv, ". "))
+            else
+              tags$strong("Sample data — arthroplasty CEA demonstration. "),
+            if (is_named_demo)
+              tagList("This is a read-only demonstration dataset derived from published literature.")
+            else
+              tagList("Upload studies for ", tags$em(intv), " to replace this with real evidence.")
           )
         )
       } else NULL

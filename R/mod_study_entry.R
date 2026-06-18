@@ -52,13 +52,10 @@ OUTCOME_CHOICES <- c(
 
 # ── UI ─────────────────────────────────────────────────────────────────────────
 # Minimal — modals are rendered server-side.
-# The download button must be in the DOM (not inside a modal) for the
-# downloadHandler to work; it is hidden visually.
+# Template download uses a static file served from www/ (generated at startup).
 
 mod_study_entry_ui <- function(id) {
-  ns <- NS(id)
-  tags$span(style = "display:none;",
-    downloadButton(ns("csv_template_dl"), ""))
+  tagList()
 }
 
 # ── Server ─────────────────────────────────────────────────────────────────────
@@ -91,7 +88,7 @@ mod_study_entry_server <- function(id,
     country_choices <- c("Select country..." = "", country_choices)
 
     currency_choices <- if (!is.null(factors)) {
-      codes   <- sort(unique(c(names(factors$ppp$rates), names(factors$fx$rates))))
+      codes   <- sort(unique(c(factors$currencies, names(factors$fx$rates))))
       codes   <- codes[nzchar(codes)]
       iso_map <- factors$iso3c_map
       labels <- vapply(codes, function(cc) {
@@ -107,30 +104,6 @@ mod_study_entry_server <- function(id,
     } else {
       c("Select currency..." = "")
     }
-
-    # ── CSV template download ───────────────────────────────────────────────
-    output$csv_template_dl <- downloadHandler(
-      filename = function()
-        paste0("cea_studies_template_", format(Sys.Date(), "%Y%m%d"), ".csv"),
-      content = function(file) {
-        tpl <- as.data.frame(
-          matrix(NA_character_, nrow = 1L, ncol = length(CSV_TEMPLATE_COLS),
-                 dimnames = list(NULL, CSV_TEMPLATE_COLS)),
-          stringsAsFactors = FALSE
-        )
-        tpl$strategy        <- ""
-        tpl$authors         <- "Author et al."
-        tpl$year            <- as.integer(format(Sys.Date(), "%Y"))
-        tpl$source_type     <- "journal"
-        tpl$currency        <- "KES"
-        tpl$outcome_measure <- "daly"
-        tpl$cost            <- 500000
-        tpl$effect          <- 1000
-        tpl$n               <- 500
-        tpl$scenario        <- "base_case"
-        write.csv(tpl, file, row.names = FALSE, na = "")
-      }
-    )
 
     # ── Form modal ──────────────────────────────────────────────────────────
     observeEvent(add_trigger(), {
@@ -355,12 +328,9 @@ mod_study_entry_server <- function(id,
         ),
         div(style = "margin-bottom:12px;",
           tags$a(
-            href    = "#",
-            onclick = sprintf(
-              "document.getElementById('%s').click(); return false;",
-              ns("csv_template_dl")
-            ),
-            class = "btn btn-sm btn-outline-secondary",
+            href     = "cea_studies_template.csv",
+            download = "cea_studies_template.csv",
+            class    = "btn btn-sm btn-outline-secondary",
             "↓ Download template"
           ),
           tags$span(style = "font-size:12px; color:#737373; margin-left:10px;",

@@ -196,6 +196,142 @@ gs_write_study <- function(study) {
 
 # ── Demo / sample data ────────────────────────────────────────────────────────
 
+#' Parse an RCEMA-format CSV into STUDIES_COLS layout for demo display.
+#' @param path         Path to the RCEMA CSV file.
+#' @param intervention String label for the demo intervention name.
+#' @param prefix       record_id prefix, e.g. "DEMO-ART".
+#' @param cost_col     RCEMA column name to map to `cost`.
+#' @param icer_col     RCEMA column name to map to `reported_icer`.
+#' @param wide         TRUE = strip _confidence/_page/_snippet/etc. columns first.
+.load_rcema_demo <- function(path, intervention, prefix,
+                              cost_col = NULL, icer_col = NULL, wide = FALSE) {
+  if (!file.exists(path)) return(.empty_studies())
+  raw <- tryCatch(
+    read.csv(path, stringsAsFactors = FALSE, na.strings = c("", "NA", "N/A"),
+             fileEncoding = "UTF-8-BOM"),
+    error = function(e) NULL
+  )
+  if (is.null(raw) || nrow(raw) == 0L) return(.empty_studies())
+
+  if (wide) {
+    drop_pat <- "_(confidence|page|snippet|original_ai_value|edited_by|edited_at)$"
+    raw <- raw[, !grepl(drop_pat, names(raw)), drop = FALSE]
+  }
+  names(raw) <- trimws(tolower(gsub("[^a-z0-9_]", "_", names(raw))))
+
+  n <- nrow(raw)
+  d <- as.data.frame(
+    matrix(NA_character_, nrow = n, ncol = length(STUDIES_COLS),
+           dimnames = list(NULL, STUDIES_COLS)),
+    stringsAsFactors = FALSE
+  )
+
+  d$record_id    <- sprintf("%s-%03d", prefix, seq_len(n))
+  d$intervention <- intervention
+  d$submitted_by <- "demo"
+  d$strategy     <- if ("intervention" %in% names(raw))
+    as.character(raw$intervention) else intervention
+
+  shared <- list(
+    authors              = c("authors"),
+    year                 = c("year_of_publication"),
+    source_type          = c("source_type"),
+    indication           = c("indication"),
+    population           = c("population"),
+    comparator           = c("comparator"),
+    country              = c("country", "country_of_study"),
+    currency             = c("currency"),
+    currency_year        = c("currency_year"),
+    perspective          = c("perspective"),
+    time_horizon         = c("time_horizon"),
+    discount_rate        = c("discount_rate"),
+    outcome_measure      = c("outcome_measure"),
+    conclusion           = c("conclusion"),
+    threshold_referenced = c("threshold_referenced", "threshold_refrenced")
+  )
+  for (col in names(shared)) {
+    hit <- shared[[col]][shared[[col]] %in% names(raw)][1L]
+    if (!is.na(hit)) d[[col]] <- as.character(raw[[hit]])
+  }
+
+  if (!is.null(cost_col) && cost_col %in% names(raw)) {
+    cost_raw <- as.character(raw[[cost_col]])
+    m <- regexpr("[0-9][0-9,\\.]*", cost_raw)
+    d$cost <- suppressWarnings(
+      as.numeric(ifelse(m > 0L, gsub(",", "", regmatches(cost_raw, m)), NA_character_))
+    )
+  }
+
+  if (!is.null(icer_col) && icer_col %in% names(raw)) {
+    icer_raw <- as.character(raw[[icer_col]])
+    m <- regexpr("[0-9][0-9,\\.]*", icer_raw)
+    extracted <- ifelse(m > 0L,
+                        gsub(",", "", regmatches(icer_raw, m)),
+                        NA_character_)
+    d$reported_icer <- suppressWarnings(as.numeric(extracted))
+  }
+
+  for (col in c("year", "currency_year", "discount_rate",
+                "cost", "effect", "n", "reported_icer"))
+    d[[col]] <- suppressWarnings(as.numeric(d[[col]]))
+
+  d
+}
+
+#' Load arthroplasty demo studies (STUDIES_COLS format with cost/effect/n).
+gs_load_demo_arthroplasty <- function() {
+  path <- "data/demo_arthroplasty.csv"
+  if (!file.exists(path)) return(.empty_studies())
+  raw <- tryCatch(
+    read.csv(path, stringsAsFactors = FALSE, na.strings = c("", "NA", "N/A")),
+    error = function(e) NULL
+  )
+  if (is.null(raw) || nrow(raw) == 0L) return(.empty_studies())
+  names(raw) <- trimws(tolower(gsub("[^a-z0-9_]", "_", names(raw))))
+  n <- nrow(raw)
+  d <- as.data.frame(
+    matrix(NA_character_, nrow = n, ncol = length(STUDIES_COLS),
+           dimnames = list(NULL, STUDIES_COLS)),
+    stringsAsFactors = FALSE
+  )
+  d$record_id    <- sprintf("DEMO-ART-%03d", seq_len(n))
+  d$intervention <- "Arthroplasty [Demo]"
+  d$submitted_by <- "demo"
+  for (col in intersect(names(raw), STUDIES_COLS))
+    d[[col]] <- as.character(raw[[col]])
+  for (col in c("year", "currency_year", "discount_rate",
+                "cost", "effect", "n", "reported_icer"))
+    d[[col]] <- suppressWarnings(as.numeric(d[[col]]))
+  d
+}
+
+#' Load caffeine-citrate demo studies (STUDIES_COLS format with cost/effect/n).
+gs_load_demo_caffeine <- function() {
+  path <- "data/demo_caffeine_citrate.csv"
+  if (!file.exists(path)) return(.empty_studies())
+  raw <- tryCatch(
+    read.csv(path, stringsAsFactors = FALSE, na.strings = c("", "NA", "N/A")),
+    error = function(e) NULL
+  )
+  if (is.null(raw) || nrow(raw) == 0L) return(.empty_studies())
+  names(raw) <- trimws(tolower(gsub("[^a-z0-9_]", "_", names(raw))))
+  n <- nrow(raw)
+  d <- as.data.frame(
+    matrix(NA_character_, nrow = n, ncol = length(STUDIES_COLS),
+           dimnames = list(NULL, STUDIES_COLS)),
+    stringsAsFactors = FALSE
+  )
+  d$record_id    <- sprintf("DEMO-CAF-%03d", seq_len(n))
+  d$intervention <- "Caffeine citrate [Demo]"
+  d$submitted_by <- "demo"
+  for (col in intersect(names(raw), STUDIES_COLS))
+    d[[col]] <- as.character(raw[[col]])
+  for (col in c("year", "currency_year", "discount_rate",
+                "cost", "effect", "n", "reported_icer"))
+    d[[col]] <- suppressWarnings(as.numeric(d[[col]]))
+  d
+}
+
 #' Load the bundled demo studies CSV and format it to match STUDIES_COLS.
 #' record_ids are prefixed "DEMO-" so callers can detect sample rows.
 #' @param intervention  String — the currently selected intervention name.
