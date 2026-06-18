@@ -584,3 +584,22 @@ hr {
   text-align: center;
   max-width: 300px;
 }
+
+/* Synthesis table — study-consistency detail button on pooled ICER */
+.synth-icer-info {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: #0369a1;
+  background: #fff;
+  border: 1px solid #0369a1;
+  border-radius: 4px;
+  padding: 1px 7px;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  line-height: 1.6;
+}
+.synth-icer-info:hover {
+  background: #eff6ff;
+}

@@ -277,14 +277,12 @@ synth_pool <- function(strat_studies, std_list, ref_pooled = NULL, method = "wei
 
   mean_icer_ppp <- if (!is.null(ref_pooled) && any(is.finite(costs_ppp))) {
     study_icers <- (costs_ppp - ref_pooled$cost_ppp) / (effects - ref_pooled$effect)
-    study_icers <- study_icers[is.finite(study_icers)]
-    if (length(study_icers) > 0L) mean(study_icers) else NA_real_
+    .pool(study_icers, ns, method)
   } else NA_real_
 
   mean_icer_fx <- if (!is.null(ref_pooled) && any(is.finite(costs_fx))) {
     study_icers <- (costs_fx - ref_pooled$cost_fx) / (effects - ref_pooled$effect)
-    study_icers <- study_icers[is.finite(study_icers)]
-    if (length(study_icers) > 0L) mean(study_icers) else NA_real_
+    .pool(study_icers, ns, method)
   } else NA_real_
 
   icer_method_diff_pct <- if (is.finite(icer_pooled_ppp) && is.finite(mean_icer_ppp) &&

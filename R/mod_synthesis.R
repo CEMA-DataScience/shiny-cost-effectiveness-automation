@@ -488,16 +488,56 @@ mod_synthesis_server <- function(id, factors, interventions,
           icer_cell <- if (!is.finite(pool$icer_pooled_ppp)) {
             tags$span("Reference", style = "color:#737373; font-style:italic; font-size:12px;")
           } else {
+            detail_btn <- if (is.finite(pool$mean_icer_ppp)) {
+              diff_pct <- pool$icer_method_diff_pct
+              pop_content <- paste0(
+                "<div style='font-size:12px'>",
+                "<div style='display:flex;justify-content:space-between;",
+                "gap:16px;padding:3px 0'>",
+                  "<span>Pooled ICER</span>",
+                  "<span><strong>", fmt_kes(pool$icer_pooled_ppp), "</strong>",
+                  " <span style='color:#0369a1'>← used in analysis</span></span>",
+                "</div>",
+                "<div style='display:flex;justify-content:space-between;",
+                "gap:16px;padding:3px 0'>",
+                  "<span>Study average</span>",
+                  "<span>", fmt_kes(pool$mean_icer_ppp), "</span>",
+                "</div>",
+                if (is.finite(diff_pct)) paste0(
+                  "<div style='display:flex;justify-content:space-between;",
+                  "gap:16px;padding:3px 0;border-top:1px solid #e5e7eb;margin-top:4px'>",
+                    "<span>Gap</span>",
+                    "<span>", fmt_pct(diff_pct), "</span>",
+                  "</div>"
+                ),
+                "<div style=’color:#555;margin-top:8px;line-height:1.4’>",
+                  "Both use ", switch(pool$method,
+                    weighted = "sample-size weighting",
+                    ivw      = "inverse-variance weighting",
+                    "equal weighting"
+                  ), ". They differ because pooling costs and effects separately ",
+                  "then dividing (pooled ICER) is mathematically different from ",
+                  "averaging each study’s individual ICER (study average). ",
+                  "A gap above 10–15% suggests heterogeneity — consider ",
+                  "reviewing which studies to include.",
+                "</div>",
+                "</div>"
+              )
+              tags$span(
+                class = "synth-icer-info",
+                `data-toggle` = "popover",
+                `data-trigger` = "click",
+                `data-placement` = "left",
+                `data-title` = "Study consistency",
+                `data-content` = pop_content,
+                `data-html` = "true",
+                "ⓘ details"
+              )
+            } else NULL
+
             tagList(
-              div(class = "synth-kes", fmt_kes(pool$icer_pooled_ppp),
-                  tags$small(style = "color:#0369a1; font-weight:400;", " calc.")),
-              if (is.finite(pool$mean_icer_ppp))
-                div(class = "synth-range",
-                    paste0("mean: ", fmt_kes(pool$mean_icer_ppp)),
-                    if (is.finite(pool$icer_method_diff_pct) &&
-                        abs(pool$icer_method_diff_pct) > 10)
-                      tags$span(class = "synth-icer-flag",
-                                fmt_pct(pool$icer_method_diff_pct)))
+              div(class = "synth-kes", fmt_kes(pool$icer_pooled_ppp)),
+              detail_btn
             )
           }
 
@@ -556,6 +596,9 @@ mod_synthesis_server <- function(id, factors, interventions,
         tags$table(class = "synth-table",
           tags$thead(header),
           tags$tbody(body_rows)
+        ),
+        tags$script(
+          "$('[data-toggle=\"popover\"]').popover('dispose').popover({sanitize:false});"
         )
       )
     })
