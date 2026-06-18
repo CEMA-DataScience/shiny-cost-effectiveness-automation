@@ -829,6 +829,7 @@ mod_rcema_transform_server <- function(id, interventions, factors = NULL) {
       quality    = NULL,
       name_map   = NULL,
       filename   = "",
+      is_demo    = FALSE,
       saved_intervention = NULL,
       save_count = 0L
     )
@@ -896,17 +897,23 @@ mod_rcema_transform_server <- function(id, interventions, factors = NULL) {
 
     observeEvent(input$rcema_file, {
       req(input$rcema_file)
+      rv$is_demo <- FALSE
       .do_load(input$rcema_file$datapath, input$rcema_file$name)
     })
     observeEvent(input$load_caffeine, {
+      rv$is_demo <- TRUE
       .do_load("data/caffeine-citrate-updated.csv", "caffeine-citrate-updated.csv")
     })
     observeEvent(input$load_topclosure, {
       f <- "data/top closure extraction results.csv"
       if (!file.exists(f)) f <- "data/TOP CLOSURE SHINY APP RESULTS.csv"
-      if (file.exists(f)) .do_load(f, basename(f))
-      else showNotification("Top closure file not found in data/",
-                            type = "warning", duration = 4)
+      if (file.exists(f)) {
+        rv$is_demo <- TRUE
+        .do_load(f, basename(f))
+      } else {
+        showNotification("Top closure file not found in data/",
+                         type = "warning", duration = 4)
+      }
     })
 
     # Re-parse when name map is edited
@@ -1226,11 +1233,19 @@ mod_rcema_transform_server <- function(id, interventions, factors = NULL) {
         )
       }
 
-      save_btn <- if (n_total > 0L)
+      save_btn <- if (n_total == 0L) {
+        NULL
+      } else if (isTRUE(rv$is_demo)) {
+        div(class = "alert alert-warning",
+            style = "font-size: 13px; margin: 0; display: flex; align-items: center; gap: 8px;",
+            tags$strong("Demo data — not saved. "),
+            "This is a bundled example file. Upload a real RCEMA CSV to save entries to the database."
+        )
+      } else {
         actionButton(session$ns("open_save_modal"),
                      paste0("Save ", n_total, " entries to Evidence Synthesis →"),
                      class = "btn btn-primary rcema-save-btn")
-      else NULL
+      }
 
       div(class = "rcema-card",
         div(class = "rcema-card-hdr",
@@ -1282,6 +1297,12 @@ mod_rcema_transform_server <- function(id, interventions, factors = NULL) {
     })
 
     observeEvent(input$confirm_save, {
+      if (isTRUE(rv$is_demo)) {
+        showNotification("Demo data is not saved to the database.",
+                         type = "warning", duration = 5)
+        removeModal()
+        return()
+      }
       sha_intv  <- input$sha_intv_select
       submitter <- trimws(input$submitter_name)
       if (!nzchar(sha_intv)) {
