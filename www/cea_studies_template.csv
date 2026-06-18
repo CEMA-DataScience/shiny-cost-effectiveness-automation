@@ -1,0 +1,2 @@
+"strategy","authors","year","source_type","indication","population","comparator","country","currency","currency_year","perspective","time_horizon","discount_rate","outcome_measure","cost","effect","n","scenario","reported_icer","threshold_referenced","conclusion"
+"","Author et al.",2026,"journal",,,,,"KES",,,,,"daly",5e+05,1000,500,"base_case",,,
