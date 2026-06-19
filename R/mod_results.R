@@ -478,6 +478,20 @@ mod_results_server <- function(id, results, parameters, open_trigger,
     })
 
     # ── Tornado (one-way SA on ICER) ─────────────────────────────────────
+    tornado_computed <- reactive({
+      req(results(), parameters())
+      fp <- focal_pair()
+      if (is.null(fp) || !is.finite(fp$icer)) return(NULL)
+      r <- as.data.frame(results())
+      sd_base <- data.frame(
+        strategy = r$Strategy,
+        cost     = r$Cost,
+        effect   = r$Effect,
+        stringsAsFactors = FALSE
+      )
+      compute_tornado_data(sd_base, fp$ref$Strategy, fp$focal$Strategy, tornado_thr())
+    })
+
     output$tornado_plot <- plotly::renderPlotly({
       req(results(), parameters())
       r   <- as.data.frame(results())
@@ -503,49 +517,10 @@ mod_results_server <- function(id, results, parameters, open_trigger,
       ref_name   <- ref$Strategy
       focal_name <- focal$Strategy
 
-      sd_base <- data.frame(
-        strategy = r$Strategy,
-        cost     = r$Cost,
-        effect   = r$Effect,
-        stringsAsFactors = FALSE
-      )
-
-      # Compute ICER of focal vs ref with fixed comparator names
-      .icer <- function(sd) {
-        r_row <- sd[sd$strategy == ref_name,   ]
-        f_row <- sd[sd$strategy == focal_name, ]
-        if (nrow(r_row) == 0L || nrow(f_row) == 0L) return(NA_real_)
-        inc_e <- f_row$effect[1L] - r_row$effect[1L]
-        if (!is.finite(inc_e) || inc_e == 0) return(NA_real_)
-        (f_row$cost[1L] - r_row$cost[1L]) / inc_e
-      }
-
-      # Vary each parameter ±20%
-      rows <- lapply(seq_len(nrow(sd_base)), function(i) {
-        s   <- sd_base$strategy[i]
-        bc  <- sd_base$cost[i];   be <- sd_base$effect[i]
-        lo_c <- sd_base; lo_c$cost[i]   <- bc * 0.80
-        hi_c <- sd_base; hi_c$cost[i]   <- bc * 1.20
-        lo_e <- sd_base; lo_e$effect[i] <- be * 0.80
-        hi_e <- sd_base; hi_e$effect[i] <- be * 1.20
-        list(
-          data.frame(parameter = paste0(s, ": cost"),
-            icer_lo = .icer(lo_c), icer_hi = .icer(hi_c),
-            stringsAsFactors = FALSE),
-          data.frame(parameter = paste0(s, ": effect"),
-            icer_lo = .icer(lo_e), icer_hi = .icer(hi_e),
-            stringsAsFactors = FALSE)
-        )
-      })
-
-      td <- do.call(rbind, unlist(rows, recursive = FALSE))
-      td <- td[is.finite(td$icer_lo) & is.finite(td$icer_hi), ]
-      td$range <- abs(td$icer_hi - td$icer_lo)
-      td <- td[td$range > 0, ]
-
-      if (nrow(td) == 0L) return(.empty("No parameter sensitivity detected."))
-
-      td <- td[order(td$range), ]   # ascending → widest bar at top
+      td_result <- tornado_computed()
+      if (is.null(td_result) || nrow(td_result$tornado_df) == 0L)
+        return(.empty("No parameter sensitivity detected."))
+      td <- td_result$tornado_df
 
       p <- plotly::plot_ly()
       for (i in seq_len(nrow(td))) {
@@ -797,28 +772,23 @@ mod_results_server <- function(id, results, parameters, open_trigger,
     })
 
     # ── CEAC ─────────────────────────────────────────────────────────────
+    ceac_computed <- reactive({
+      req(psa_results(), parameters())
+      thr_vec <- parameters()$thresholds %||% c(parameters()$threshold)
+      compute_ceac_data(psa_results(), thr_vec)
+    })
+
     output$ceac_plot <- plotly::renderPlotly({
       req(psa_results(), parameters())
-      psa <- psa_results()
       thr <- parameters()$threshold
       ol  <- parameters()$outcome_label %||% "unit"
 
-      strats  <- psa$strategies
-      n_strat <- length(strats)
-      cost_m  <- as.matrix(psa$cost)
-      eff_m   <- as.matrix(psa$effectiveness)
-
-      # WTP range: 0 to 3× the highest selected threshold, 200 points
-      thr_vec <- parameters()$thresholds %||% c(thr)
-      wtp_seq <- seq(0, max(thr_vec, na.rm = TRUE) * 3, length.out = 200)
-
-      # For each WTP: proportion of iterations each strategy has maximum NMB
-      ceac_mat <- t(vapply(wtp_seq, function(lambda) {
-        nmb  <- eff_m * lambda - cost_m       # n_iter × n_strat
-        best <- max.col(nmb, ties.method = "first")
-        vapply(seq_len(n_strat), function(j) mean(best == j), numeric(1L))
-      }, numeric(n_strat)))
-      # ceac_mat: length(wtp_seq) × n_strat
+      cd       <- ceac_computed()
+      wtp_seq  <- cd$wtp_seq
+      ceac_mat <- cd$ceac_mat
+      strats   <- cd$strategies
+      n_strat  <- length(strats)
+      thr_vec  <- parameters()$thresholds %||% c(thr)
 
       palette <- c("#27AAE1", "#FE7501", "#084887", "#EFCA08", "#497048", "#006D77", "#8E44AD", "#D11060")
       p <- plotly::plot_ly()
@@ -923,22 +893,25 @@ mod_results_server <- function(id, results, parameters, open_trigger,
     })
 
     # ── Price Threshold: chart ────────────────────────────────────────────
-    output$pt_chart <- plotly::renderPlotly({
+    pt_computed <- reactive({
       req(results(), parameters())
       r   <- as.data.frame(results())
-      thr <- pt_thr()
-      ol  <- parameters()$outcome_label %||% "unit"
+      strategies_df <- data.frame(
+        strategy = r$Strategy,
+        cost     = r$Cost,
+        effect   = r$Effect,
+        stringsAsFactors = FALSE
+      )
+      if ("Status" %in% names(r)) strategies_df$status <- r$Status
+      compute_price_threshold_data(strategies_df, pt_thr())
+    })
 
-      # Sort by cost; reference is cheapest
-      r   <- r[order(r$Cost), ]
-      ref <- r[1L, ]
-      has_status <- "Status" %in% names(r)
+    output$pt_chart <- plotly::renderPlotly({
+      req(results(), parameters())
+      ol <- parameters()$outcome_label %||% "unit"
 
-      non_ref <- r[seq(2L, nrow(r)), ]
-      non_ref <- non_ref[is.finite(non_ref$Cost) & is.finite(non_ref$Effect), ]
-      if (has_status) non_ref <- non_ref[!(toupper(non_ref$Status) %in% c("D", "ED")), ]
-
-      if (nrow(non_ref) == 0L) {
+      pd <- pt_computed()
+      if (length(pd$curves) == 0L) {
         return(plotly::plot_ly() |>
           plotly::layout(annotations = list(list(
             text = "No strategies to plot", showarrow = FALSE,
@@ -947,53 +920,35 @@ mod_results_server <- function(id, results, parameters, open_trigger,
           )), paper_bgcolor = "#fff", plot_bgcolor = "#fff"))
       }
 
-      palette <- c("#27AAE1", "#FE7501", "#084887", "#EFCA08", "#497048", "#006D77", "#8E44AD", "#D11060")
-      p <- plotly::plot_ly()
-
-      fp <- pt_focal_pair()
+      palette    <- c("#27AAE1", "#FE7501", "#084887", "#EFCA08", "#497048", "#006D77", "#8E44AD", "#D11060")
+      p          <- plotly::plot_ly()
+      fp         <- pt_focal_pair()
       focal_name <- if (!is.null(fp)) fp$focal$Strategy else NA_character_
+      thr        <- pd$threshold
+      x_min      <- pd$x_min
+      x_max      <- pd$x_max
 
-      x_min <- min(non_ref$Cost) * 0.1
-
-      # x_max must cover the break-even price for every strategy
-      break_evens <- vapply(seq_len(nrow(non_ref)), function(i) {
-        inc_e <- non_ref[i, ]$Effect - ref$Effect
-        if (!is.finite(inc_e) || inc_e <= 0) return(non_ref[i, ]$Cost)
-        ref$Cost + thr * inc_e
-      }, numeric(1L))
-      x_max <- max(max(non_ref$Cost) * 3.0, max(break_evens, na.rm = TRUE)) * 1.15
-
-      for (i in seq_len(nrow(non_ref))) {
-        s     <- non_ref[i, ]
-        inc_e <- s$Effect - ref$Effect
-        if (!is.finite(inc_e) || inc_e <= 0) next
-
-        is_focal <- identical(s$Strategy, focal_name)
-
-        prices <- seq(x_min, x_max, length.out = 100)
-        icers  <- (prices - ref$Cost) / inc_e
-        # Marker sits on this strategy's own curve (vs-reference ICER at its
-        # current price) — not dampack's frontier-relative ICER, which for
-        # non-focal strategies would place it off the curve.
-        icer_now <- (s$Cost - ref$Cost) / inc_e
-        col    <- palette[((i - 1L) %% length(palette)) + 1L]
+      for (i in seq_along(pd$curves)) {
+        cv       <- pd$curves[[i]]
+        col      <- palette[((i - 1L) %% length(palette)) + 1L]
+        is_focal <- identical(cv$strategy, focal_name)
 
         p <- p |>
           plotly::add_lines(
-            x         = prices,
-            y         = icers,
-            name      = if (is_focal) paste0(s$Strategy, " (focal)") else s$Strategy,
+            x         = cv$prices,
+            y         = cv$icers,
+            name      = if (is_focal) paste0(cv$strategy, " (focal)") else cv$strategy,
             line      = list(color = col, width = if (is_focal) 3 else 1.5),
             hovertemplate = paste0(
-              s$Strategy, "<br>Price: KES %{x:,.0f}<br>ICER: KES %{y:,.0f}<extra></extra>"
+              cv$strategy, "<br>Price: KES %{x:,.0f}<br>ICER: KES %{y:,.0f}<extra></extra>"
             )
           ) |>
           plotly::add_markers(
-            x         = s$Cost,
-            y         = icer_now,
+            x         = cv$cost_now,
+            y         = cv$icer_now,
             showlegend = FALSE,
             marker    = list(
-              color  = if (is.finite(icer_now) && icer_now <= thr) "#047857" else "#dc2626",
+              color  = if (is.finite(cv$icer_now) && cv$icer_now <= thr) "#047857" else "#dc2626",
               size   = if (is_focal) 10 else 7,
               symbol = "circle"
             ),

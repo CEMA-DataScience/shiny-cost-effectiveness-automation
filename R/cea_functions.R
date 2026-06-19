@@ -340,6 +340,143 @@ generate_cea_interpretation <- function(icer_results, params) {
   return(paste(interpretation_parts, collapse = "\n"))
 }
 
+#' Compute tornado (one-way sensitivity) data for a focal pair.
+#'
+#' Perturbs each strategy's cost and effect ±20%, recomputes the focal vs
+#' reference ICER, and returns a sorted data frame ready for a horizontal bar
+#' chart.
+#'
+#' @param strategies_df Data frame: strategy (chr), cost (num), effect (num).
+#'   All strategies required; ref and focal are identified by name.
+#' @param ref_name   Name of the reference strategy.
+#' @param focal_name Name of the focal (non-reference) strategy.
+#' @param threshold  WTP threshold (numeric); carried through for convenience.
+#' @return List: tornado_df (parameter, icer_lo, icer_hi, range), base_icer, threshold.
+compute_tornado_data <- function(strategies_df, ref_name, focal_name, threshold) {
+  .icer_scalar <- function(sd) {
+    r_row <- sd[sd$strategy == ref_name,   ]
+    f_row <- sd[sd$strategy == focal_name, ]
+    if (nrow(r_row) == 0L || nrow(f_row) == 0L) return(NA_real_)
+    inc_e <- f_row$effect[1L] - r_row$effect[1L]
+    if (!is.finite(inc_e) || inc_e == 0) return(NA_real_)
+    (f_row$cost[1L] - r_row$cost[1L]) / inc_e
+  }
+
+  base_icer <- .icer_scalar(strategies_df)
+
+  rows <- lapply(seq_len(nrow(strategies_df)), function(i) {
+    s   <- strategies_df$strategy[i]
+    bc  <- strategies_df$cost[i];   be <- strategies_df$effect[i]
+    lo_c <- strategies_df; lo_c$cost[i]   <- bc * 0.80
+    hi_c <- strategies_df; hi_c$cost[i]   <- bc * 1.20
+    lo_e <- strategies_df; lo_e$effect[i] <- be * 0.80
+    hi_e <- strategies_df; hi_e$effect[i] <- be * 1.20
+    list(
+      data.frame(parameter = paste0(s, ": cost"),
+        icer_lo = .icer_scalar(lo_c), icer_hi = .icer_scalar(hi_c),
+        stringsAsFactors = FALSE),
+      data.frame(parameter = paste0(s, ": effect"),
+        icer_lo = .icer_scalar(lo_e), icer_hi = .icer_scalar(hi_e),
+        stringsAsFactors = FALSE)
+    )
+  })
+
+  td <- do.call(rbind, unlist(rows, recursive = FALSE))
+  td <- td[is.finite(td$icer_lo) & is.finite(td$icer_hi), ]
+  td$range <- abs(td$icer_hi - td$icer_lo)
+  td <- td[td$range > 0, ]
+  td <- td[order(td$range), ]   # ascending → widest bar at top in plotly
+
+  list(tornado_df = td, base_icer = base_icer, threshold = threshold)
+}
+
+#' Compute CEAC data from a dampack PSA object.
+#'
+#' For each WTP value in a 200-point sweep (0 to 3× max threshold), returns
+#' the proportion of PSA iterations in which each strategy has maximum NMB.
+#'
+#' @param psa        dampack psa object with $strategies, $cost, $effectiveness.
+#' @param thresholds Numeric vector of WTP thresholds; sweep extends to 3× max.
+#' @return List: wtp_seq (length 200), ceac_mat (200 × n_strat), strategies.
+compute_ceac_data <- function(psa, thresholds) {
+  strats  <- psa$strategies
+  n_strat <- length(strats)
+  cost_m  <- as.matrix(psa$cost)
+  eff_m   <- as.matrix(psa$effectiveness)
+
+  wtp_seq <- seq(0, max(thresholds, na.rm = TRUE) * 3, length.out = 200)
+
+  ceac_mat <- t(vapply(wtp_seq, function(lambda) {
+    nmb  <- eff_m * lambda - cost_m
+    best <- max.col(nmb, ties.method = "first")
+    vapply(seq_len(n_strat), function(j) mean(best == j), numeric(1L))
+  }, numeric(n_strat)))
+
+  list(wtp_seq = wtp_seq, ceac_mat = ceac_mat, strategies = strats)
+}
+
+#' Compute price threshold curve data for all non-dominated strategies.
+#'
+#' For each non-reference, non-dominated strategy, generates the ICER-vs-price
+#' curve (100 points), the current ICER marker, and the break-even price and
+#' cost headroom at the given WTP threshold.
+#'
+#' @param strategies_df Data frame: strategy (chr), cost (num), effect (num),
+#'   optionally status (chr). Dominated rows (status "D"/"ED") are excluded.
+#' @param threshold WTP threshold (numeric).
+#' @return List: curves (one list per strategy with prices, icers, icer_now,
+#'   cost_now, break_even, headroom), ref_strategy, ref_cost, x_min, x_max,
+#'   threshold.
+compute_price_threshold_data <- function(strategies_df, threshold) {
+  df <- strategies_df[order(strategies_df$cost), ]
+  ref <- df[1L, ]
+
+  has_status <- "status" %in% names(df)
+  non_ref <- df[seq(2L, nrow(df)), , drop = FALSE]
+  non_ref <- non_ref[is.finite(non_ref$cost) & is.finite(non_ref$effect), ]
+  if (has_status)
+    non_ref <- non_ref[!(toupper(non_ref$status) %in% c("D", "ED")), ]
+
+  empty <- list(curves = list(), ref_strategy = ref$strategy,
+                ref_cost = ref$cost, x_min = 0, x_max = 0, threshold = threshold)
+  if (nrow(non_ref) == 0L) return(empty)
+
+  x_min <- min(non_ref$cost) * 0.1
+
+  break_evens <- vapply(seq_len(nrow(non_ref)), function(i) {
+    inc_e <- non_ref[i, ]$effect - ref$effect
+    if (!is.finite(inc_e) || inc_e <= 0) return(non_ref[i, ]$cost)
+    ref$cost + threshold * inc_e
+  }, numeric(1L))
+  x_max <- max(max(non_ref$cost) * 3.0, max(break_evens, na.rm = TRUE)) * 1.15
+
+  curves <- list()
+  for (i in seq_len(nrow(non_ref))) {
+    s     <- non_ref[i, ]
+    inc_e <- s$effect - ref$effect
+    if (!is.finite(inc_e) || inc_e <= 0) next
+
+    prices     <- seq(x_min, x_max, length.out = 100)
+    icers      <- (prices - ref$cost) / inc_e
+    icer_now   <- (s$cost - ref$cost) / inc_e
+    break_even <- ref$cost + threshold * inc_e
+    headroom   <- break_even - s$cost
+
+    curves[[length(curves) + 1L]] <- list(
+      strategy   = s$strategy,
+      prices     = prices,
+      icers      = icers,
+      icer_now   = icer_now,
+      cost_now   = s$cost,
+      break_even = break_even,
+      headroom   = headroom
+    )
+  }
+
+  list(curves = curves, ref_strategy = ref$strategy, ref_cost = ref$cost,
+       x_min = x_min, x_max = x_max, threshold = threshold)
+}
+
 #' Create sample strategy data for testing - Kenyan context
 #' @return Data frame with example strategies in KES
 create_sample_data <- function() {
