@@ -10,6 +10,7 @@
 INTERVENTIONS_ID <- "1PLNi0FvORu-uGWrH5o56rtCSEmF1dKwULSu07-3MZ5s"
 STUDIES_ID       <- "1L0bouGvP3VpzaG993JchhkkhRf9GHwtm4C--ZCpmJHs"
 STUDIES_SHEET    <- "Sheet1"
+BIA_SHEET        <- "Budget Impact Runs"
 KEY_PATH         <- ".secrets/cema-cea-tool.json"
 
 # Column schema for the studies sheet (order matters — matches sheet columns).
@@ -21,6 +22,17 @@ STUDIES_COLS <- c(
   "perspective", "time_horizon", "discount_rate",
   "outcome_measure", "cost", "effect", "n",
   "scenario", "reported_icer", "threshold_referenced", "conclusion",
+  "submitted_by", "submitted_at"
+)
+
+# Column schema for the Budget Impact Runs sheet — one row per (run, year,
+# strategy); lives in the same spreadsheet as the studies sheet (STUDIES_ID).
+BIA_COLS <- c(
+  "run_id", "run_label", "year",
+  "strategy", "is_reference", "cost_per_case", "cost_source",
+  "target_population", "uptake_share",
+  "reference_total", "new_total", "budget_impact", "cumulative_budget_impact",
+  "time_horizon_years", "outcome_type",
   "submitted_by", "submitted_at"
 )
 
@@ -192,6 +204,105 @@ gs_write_study <- function(study) {
     warning("[gs] Write failed: ", e$message)
     FALSE
   })
+}
+
+# ── Budget Impact runs (read/write) ─────────────────────────────────────────────
+
+#' Ensure the Budget Impact Runs sheet has the correct header row.
+#' Safe to call every startup — only writes if expected columns are absent.
+#' Unlike the studies sheet, this tab may not exist yet at all, so a failed
+#' read (missing tab) is treated the same as a column mismatch: (re)create it.
+gs_ensure_bia_headers <- function() {
+  existing_cols <- tryCatch(
+    suppressMessages(
+      names(googlesheets4::read_sheet(STUDIES_ID, sheet = BIA_SHEET, n_max = 0))
+    ),
+    error = function(e) NULL
+  )
+
+  if (is.null(existing_cols) || !all(BIA_COLS %in% existing_cols)) {
+    empty_df <- setNames(
+      data.frame(matrix(ncol = length(BIA_COLS), nrow = 0L),
+                 stringsAsFactors = FALSE),
+      BIA_COLS
+    )
+    tryCatch({
+      googlesheets4::sheet_write(empty_df, ss = STUDIES_ID, sheet = BIA_SHEET)
+      message("[gs] Budget Impact Runs sheet ready.")
+    }, error = function(e) {
+      warning("[gs] Could not ensure BIA headers: ", e$message)
+    })
+  } else {
+    message("[gs] Budget Impact Runs sheet headers OK.")
+  }
+}
+
+#' Read all saved Budget Impact runs.
+#' Returns a data frame with BIA_COLS columns.
+gs_read_bia_runs <- function() {
+  tryCatch({
+    d <- suppressMessages(
+      googlesheets4::read_sheet(STUDIES_ID, sheet = BIA_SHEET, col_types = "c")
+    )
+    if (nrow(d) == 0L) return(.empty_bia_runs())
+
+    for (col in c("year", "cost_per_case", "target_population", "uptake_share",
+                  "reference_total", "new_total", "budget_impact",
+                  "cumulative_budget_impact", "time_horizon_years")) {
+      if (col %in% names(d))
+        d[[col]] <- suppressWarnings(as.numeric(d[[col]]))
+    }
+    d$is_reference <- as.logical(d$is_reference)
+
+    d
+  }, error = function(e) {
+    warning("[gs] Could not read Budget Impact runs: ", e$message)
+    .empty_bia_runs()
+  })
+}
+
+#' Append one Budget Impact run (one row per year x strategy) to the sheet.
+#' @param rows_df Data frame with the BIA_COLS fields except run_id/submitted_at,
+#'   which are app-managed and added here so every row in the run shares them.
+#' @return TRUE on success, FALSE on failure.
+gs_write_bia_run <- function(rows_df) {
+  run_id      <- paste0("BIA-", format(Sys.time(), "%Y%m%d%H%M%S"),
+                         "-", sample(1000L:9999L, 1L))
+  submitted_at <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
+
+  rows_df$run_id       <- run_id
+  rows_df$submitted_at <- submitted_at
+
+  row_df <- as.data.frame(
+    lapply(BIA_COLS, function(col) {
+      v <- rows_df[[col]]
+      if (is.null(v)) rep(NA_character_, nrow(rows_df)) else as.character(v)
+    }),
+    col.names        = BIA_COLS,
+    stringsAsFactors = FALSE
+  )
+
+  tryCatch({
+    googlesheets4::sheet_append(STUDIES_ID, data = row_df, sheet = BIA_SHEET)
+    message("[gs] Budget Impact run appended: ", run_id)
+    TRUE
+  }, error = function(e) {
+    warning("[gs] BIA write failed: ", e$message)
+    FALSE
+  })
+}
+
+.empty_bia_runs <- function() {
+  d <- as.data.frame(
+    matrix(nrow = 0L, ncol = length(BIA_COLS), dimnames = list(NULL, BIA_COLS)),
+    stringsAsFactors = FALSE
+  )
+  for (col in c("year", "cost_per_case", "target_population", "uptake_share",
+                "reference_total", "new_total", "budget_impact",
+                "cumulative_budget_impact", "time_horizon_years"))
+    d[[col]] <- numeric(0L)
+  d$is_reference <- logical(0L)
+  d
 }
 
 # ── Demo / sample data ────────────────────────────────────────────────────────

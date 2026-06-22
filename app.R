@@ -21,6 +21,8 @@ source("R/mod_synthesis.R")
 source("R/mod_rcema_transform.R")
 source("R/mod_input.R")
 source("R/mod_results.R")
+source("R/budget_impact_functions.R")
+source("R/mod_budget_impact.R")
 
 # ── Static assets ─────────────────────────────────────────────────────────────
 
@@ -50,6 +52,7 @@ local({
 
 GS_WRITE_ENABLED <- gs_init()
 gs_ensure_headers()
+gs_ensure_bia_headers()
 
 # Interventions list: read once, shared across all sessions.
 INTERVENTIONS <- gs_read_interventions()
@@ -107,6 +110,10 @@ ui <- navbarPage(
 
   tabPanel("Analysis",
     mod_input_ui("icer_calculation")
+  ),
+
+  tabPanel("Budget Impact",
+    mod_budget_impact_ui("budget_impact")
   ),
 
   tabPanel("Methods",
@@ -396,6 +403,12 @@ server <- function(input, output, session) {
     parameters   = input_data$parameters,
     open_trigger = open_drawer_trigger,
     psa_results  = reactive(app_state$psa_results)
+  )
+
+  mod_budget_impact_server(
+    "budget_impact",
+    results         = reactive(app_state$last_results),
+    strategies_data = input_data$strategies_data
   )
 }
 
